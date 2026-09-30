@@ -1,0 +1,11 @@
+.gradle/
+.gradle-local/
+build/
+.env
+.env.*
+!.env.example
+.idea/
+*.iml
+.DS_Store
+*.log
+

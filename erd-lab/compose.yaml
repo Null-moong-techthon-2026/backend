@@ -1,0 +1,24 @@
+name: boothrock-erd
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: boothrock_erd
+      POSTGRES_USER: erd_local
+      POSTGRES_PASSWORD: ${ERD_DB_PASSWORD:?Set ERD_DB_PASSWORD in .env}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    ports:
+      - "127.0.0.1:${ERD_DB_PORT:-5434}:5432"
+    volumes:
+      - erd-data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/001-erd.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+volumes:
+  erd-data:
