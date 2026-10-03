@@ -1,0 +1,9 @@
+.git
+.gradle
+.gradle-local
+build
+.env
+.env.*
+.idea
+*.log
+erd-lab/

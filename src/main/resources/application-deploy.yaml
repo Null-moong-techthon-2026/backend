@@ -1,0 +1,6 @@
+spring:
+  flyway:
+    url: ${MIGRATION_DB_URL}
+    user: ${MIGRATION_DB_USERNAME}
+    password: ${MIGRATION_DB_PASSWORD}
+

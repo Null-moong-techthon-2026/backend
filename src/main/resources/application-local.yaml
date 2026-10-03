@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/boothrock
+    username: boothrock_local
+    password: 1234
+server:
+  address: 127.0.0.1
+  servlet:
+    session:
+      cookie:
+        secure: false
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
