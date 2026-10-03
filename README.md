@@ -2,6 +2,107 @@
 
 행사 운영 서비스 부스럭의 백엔드입니다. **2026-10-03 현재 개인 계정 회원가입·로그인·로그아웃과 실제 PostgreSQL 연결까지 구현했습니다.** 행사·부스·지도 API는 구현 전입니다.
 
+## 처음 실행하기
+
+**Docker는 DB만 실행하고, 서버는 PC의 JDK 21로 실행합니다.** PostgreSQL·Gradle·DBeaver를 별도로 설치하거나 `.env` 파일을 만들 필요는 없습니다.
+
+### 1. 준비
+
+- Git, **JDK 21**, Docker와 Docker Compose를 설치합니다.
+- macOS/Windows에서는 Docker Desktop을 실행하고 준비가 끝날 때까지 기다립니다. Linux에서는 Docker 엔진을 실행합니다.
+- 터미널에서 아래 명령이 정상 동작하는지 확인합니다. Java 버전은 21이어야 합니다.
+
+```bash
+git --version
+java -version
+docker compose version
+docker info
+```
+
+첫 실행은 PostgreSQL 이미지와 Gradle·라이브러리를 내려받으므로 인터넷 연결이 필요하며 시간이 걸릴 수 있습니다.
+
+### 2. 저장소 받기
+
+```bash
+git clone https://github.com/Null-moong-techthon-2026/backend.git
+cd backend
+```
+
+이미 저장소를 받은 경우 새로 복제하지 않고 해당 `backend` 폴더를 사용합니다. 아래 명령도 모두 그 폴더에서 실행합니다.
+
+### 3. DB 실행
+
+```bash
+docker compose up -d --wait db
+docker compose ps
+```
+
+`db`가 `healthy`이면 준비된 것입니다. DB는 `127.0.0.1:5433`에서 실행됩니다.
+**테이블은 다음 단계에서 서버가 처음 시작될 때 자동으로 생성됩니다. SQL을 직접 넣을 필요는 없습니다.**
+
+### 4. 서버 실행
+
+macOS/Linux:
+
+```bash
+./gradlew bootRun
+```
+
+Windows PowerShell:
+
+```powershell
+.\gradlew.bat bootRun
+```
+
+`Started BoothrockApiApplication` 로그가 나오면 서버가 준비된 것입니다. 실행 터미널은 계속 열어둡니다.
+기본 프로필은 `local`이고 서버 주소는 `http://127.0.0.1:8080`입니다.
+
+### 5. 실행 확인
+
+브라우저에서 아래 주소를 엽니다. DB 내부를 직접 확인하지 않아도 됩니다.
+
+| 확인 | 기본 주소 |
+| --- | --- |
+| Swagger UI | [Swagger 열기](http://127.0.0.1:8080/swagger-ui/index.html) |
+| 서버 상태 | [System Status](http://127.0.0.1:8080/api/system/status) |
+| DB 연결 상태 | [Readiness](http://127.0.0.1:8080/actuator/health/readiness) |
+| OpenAPI JSON | [API 명세](http://127.0.0.1:8080/v3/api-docs) |
+
+Swagger와 API 호출은 같은 브라우저에서 같은 호스트를 사용합니다. 예를 들어 `127.0.0.1`과 `localhost`를 혼용하면 세션 쿠키가 공유되지 않습니다.
+
+새 PC의 DB에는 계정이 없습니다. 로그인 테스트는 아래 Swagger 안내에 따라 먼저 회원가입한 뒤 진행합니다.
+
+### 종료와 다시 실행
+
+서버 터미널에서 `Ctrl+C`를 누른 다음 DB를 중지합니다.
+
+```bash
+docker compose stop db
+```
+
+다음에는 Docker를 실행하고 **3번(DB 실행) → 4번(서버 실행)**만 반복합니다. 기존 데이터는 유지됩니다.
+
+### 실행이 안 될 때
+
+| 증상 | 확인할 내용 |
+| --- | --- |
+| Docker daemon 연결 오류 | Docker Desktop 또는 Docker 엔진이 실행 중인지 확인 |
+| Java 실행 오류 / JDK 21을 찾지 못함 | JDK 21 설치, `JAVA_HOME` 및 터미널의 `java -version` 확인 |
+| `gradlew` 실행 권한 오류 (macOS/Linux) | `chmod +x gradlew` 후 다시 실행 |
+| DB 연결 실패 | `docker compose ps`에서 `db`가 `healthy`인지 확인. 원인은 `docker compose logs db`로 확인 |
+| 5433 포트 사용 중 | 해당 포트를 쓰는 기존 DB를 확인하고 이 프로젝트 DB와 중복 실행하지 않음 |
+| 8080 포트 사용 중 | 기존 서버를 확인하거나 아래처럼 8081로 실행 |
+
+```bash
+./gradlew bootRun --args='--server.port=8081'
+```
+
+```powershell
+.\gradlew.bat bootRun --args="--server.port=8081"
+```
+
+다른 포트를 사용하면 Swagger 주소의 포트도 바꿉니다. DB가 계속 시작되지 않을 때는 데이터를 삭제하지 말고 로그를 공유합니다.
+
 ## 현재 구현 범위
 
 | 항목 | 상태 |
@@ -19,47 +120,7 @@
 `onboardingType`은 가입 후 화면 선택용이며 조직 소속이나 권한을 부여하지 않습니다. 현재 계정 권한으로 저장하지 않습니다.
 인증·테스트 API와 Swagger는 `local`에서만 활성화됩니다. `deploy` 또는 `local+deploy`에서는 인증·테스트 경로를 열지 않습니다.
 
-## 실행 환경
-
-- JDK 21
-- Docker 및 Docker Compose
-- Spring Boot 4.1.1 / Gradle Wrapper 9.7.1
-- PostgreSQL 17 / Flyway / Spring Data JPA
-- Swagger UI: springdoc-openapi
-
-별도 Gradle 설치는 필요 없습니다. 기본 로컬 실행에는 `.env` 파일도 필요 없습니다.
-
-## 로컬 실행
-
-저장소를 처음 받는 경우:
-
-```bash
-git clone https://github.com/Null-moong-techthon-2026/backend.git
-cd backend
-```
-
-백엔드 폴더에서 DB를 실행한 다음 서버를 실행합니다.
-
-```bash
-docker compose up -d --wait db
-./gradlew bootRun
-```
-
-기본 프로필은 `local`입니다. Windows에서는 `gradlew.bat bootRun`을 사용합니다.
-8080 포트를 이미 사용 중이면 기존 실행 서버를 종료하거나 다른 포트로 실행합니다.
-
-```bash
-./gradlew bootRun --args='--server.port=8081'
-```
-
-| 확인 | 기본 주소 |
-| --- | --- |
-| Swagger UI | [Swagger 열기](http://127.0.0.1:8080/swagger-ui/index.html) |
-| 서버 상태 | [System Status](http://127.0.0.1:8080/api/system/status) |
-| DB 연결 상태 | [Readiness](http://127.0.0.1:8080/actuator/health/readiness) |
-| OpenAPI JSON | [API 명세](http://127.0.0.1:8080/v3/api-docs) |
-
-Swagger와 API 호출은 같은 브라우저에서 같은 호스트를 사용합니다. 예를 들어 `127.0.0.1`과 `localhost`를 혼용하면 세션 쿠키가 공유되지 않습니다.
+기술 구성: Spring Boot 4.1.1 / Gradle Wrapper 9.7.1 / PostgreSQL 17 / Flyway / Spring Data JPA / springdoc-openapi.
 
 ## 인증 API
 
@@ -104,26 +165,7 @@ Swagger의 예시는 입력값이며, 계정은 가입 요청을 실행해야 �
 로그인·로그아웃은 서버 메모리의 세션을 변경하므로 DB 행 수가 바뀌지 않습니다.
 자세한 curl 예시는 [인증 실행 안내](docs/AUTH_START.md)에 있습니다.
 
-## DBeaver로 확인
-
-| 항목 | 기본값 |
-| --- | --- |
-| Driver | PostgreSQL |
-| Host / Port | `127.0.0.1` / `5433` |
-| Database / Schema | `boothrock` / `app` |
-| Username / Password | `boothrock_local` / `1234` |
-
-위 자격증명은 loopback에만 노출하는 로컬 개발 DB의 공개 테스트 값입니다.
-Docker 내부 PostgreSQL 포트는 5432이며 외부에서는 5433으로 연결합니다.
-
-`Schemas → app → Tables`에서 `accounts`, `local_credentials`, `organizations`, `organization_memberships`, `flyway_schema_history`를 확인합니다.
-신규 회원가입은 계정·로그인 정보 두 테이블에만 저장됩니다. 계정의 `id`는 UUID이고 비밀번호는 `{bcrypt}...` 해시로 저장됩니다.
-
-- [계정·조직 조회 SQL](docs/local-db/check-auth-data.sql)
-- [계정·조직 전체 삭제 SQL](docs/local-db/clear-auth-data.sql)
-
-가입 **201** 또는 삭제 **204** 후 데이터 탭을 새로고침하거나 조회 SQL을 다시 실행합니다. 열어둔 결과는 자동으로 갱신되지 않습니다.
-API의 개수와 다르면 연결 대상·조회 필터를 확인합니다. 오래 열린 REPEATABLE READ/SERIALIZABLE 트랜잭션이라면 미저장 편집을 확인하고 트랜잭션을 종료한 뒤 재조회합니다.
+DB 내부 확인이 필요한 백엔드 담당자는 [선택 사항: DBeaver·SQL 안내](docs/local-db/README.md)를 참고합니다.
 
 ## 테스트 명령
 
@@ -161,7 +203,7 @@ DB는 named volume에 저장되어 재실행해도 데이터가 유지됩니다.
 Flyway는 새 migration만 적용하며 Hibernate의 `ddl-auto=validate`는 테이블을 재생성하지 않습니다.
 기존 볼륨의 DB 비밀번호는 Compose 값을 바꿔도 자동 변경되지 않습니다.
 
-데이터 행만 비우려면 로컬 DELETE API에 새 CSRF 토큰과 `confirmation=DELETE_LOCAL_DATA`를 넣거나 위 삭제 SQL을 실행합니다.
+데이터 행만 비우려면 로컬 DELETE API에 새 CSRF 토큰과 `confirmation=DELETE_LOCAL_DATA`를 넣거나 [삭제 SQL](docs/local-db/clear-auth-data.sql)을 실행합니다.
 이 작업은 **모든 계정·로그인 정보·조직·소속을 삭제**하지만 테이블 구조와 migration 이력은 유지합니다.
 `docker compose down -v`는 DB 볼륨까지 삭제하므로 완전 초기화가 필요한 경우에만 사용합니다.
 

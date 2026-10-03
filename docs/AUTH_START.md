@@ -18,41 +18,23 @@
 자동 데모 데이터 생성은 제거했습니다. 서버 재시작은 기존 데이터를 보존하며 새 계정을 만들지 않습니다.
 계정을 사용하려면 Swagger의 주최자/운영자 가입 예시로 먼저 회원가입합니다.
 
-## DBeaver에서 보는 위치
-
-| 항목 | 값 |
-| --- | --- |
-| Host / Port | `127.0.0.1` / `5433` |
-| Database / Schema | `boothrock` / `app` |
-| Username / Password | `boothrock_local` / `1234` |
-
-Flyway의 V1은 `app` 스키마, V2는 `accounts`, `local_credentials`, `organizations`,
-`organization_memberships`를 생성합니다. 로그인 ID는 DB UNIQUE 제약으로 보호됩니다.
-조직과 담당자 소속은 개인 계정과 분리됩니다. 두 가입 유형 모두 조직·소속·관리 권한을 생성하지 않습니다.
-`onboardingType`은 가입 후 화면 선택용입니다. 조직 생성 신청·검증과 초대 수락 API는 아직 없습니다.
-기존 DB의 조직·소속 행은 이번 가입 정책 변경으로 삭제되지 않습니다.
+DB·서버 실행 방법은 [프로젝트 README](../README.md)의 처음 실행하기를 참고합니다.
+DBeaver 설치나 SQL 실행은 필요하지 않습니다. DB 내부 확인이 필요한 경우에만 [DBeaver·SQL 안내](local-db/README.md)를 참고합니다.
 
 ## Swagger에서 직접 테스트
 
 1. `GET /api/auth/csrf`를 실행하고 응답의 `token`을 복사합니다.
 2. `POST /api/auth/sign-up`의 예시 선택 메뉴에서 주최자 또는 부스 운영자를 선택합니다. `X-CSRF-TOKEN`에 토큰을 넣고 실행합니다. 성공은 201이며 같은 아이디의 재가입은 409입니다.
-3. DBeaver에서 [조회 SQL](local-db/check-auth-data.sql)을 실행합니다. 두 가입 유형 모두 계정·로그인 정보 두 테이블에만 저장됩니다. 조직 이름과 역할은 비어 있는 것이 정상입니다.
+3. `GET /api/dev/auth-data`를 실행해 계정·로그인 정보 개수가 증가했는지 확인합니다. 두 가입 유형 모두 조직·소속·관리 권한을 생성하지 않습니다.
 4. `POST /api/auth/login`에서 가입한 유형의 로그인 예시를 선택합니다. 같은 토큰으로 실행하고 성공 200을 확인합니다.
 5. `GET /api/me`를 실행해 로그인한 계정 정보를 확인합니다.
-6. 삭제하려면 CSRF 토큰을 다시 조회하고 `DELETE /api/dev/auth-data`의 헤더에 넣습니다. `confirmation`은 `DELETE_LOCAL_DATA`입니다. 성공 204 후 조회 SQL을 다시 실행합니다.
+6. CSRF 토큰을 다시 조회하고 `POST /api/auth/logout`을 실행합니다. 성공 204 후 `GET /api/me`는 401입니다.
 
 Swagger 입력 예시는 DB에 미리 들어 있는 계정이 아닙니다. 같은 브라우저에서 `127.0.0.1`로 주소를 통일해야 세션이 유지됩니다.
-DBeaver에서 직접 삭제하려면 [삭제 SQL](local-db/clear-auth-data.sql)을 사용합니다. 테이블과 migration 이력은 남습니다.
-새 계정 삽입은 비밀번호 해시까지 처리하는 회원가입 API로 진행합니다. 조직 소속은 생성하지 않습니다.
-삭제 후 이전 로그인 세션은 로그아웃하고 다시 가입·로그인합니다. 서버 재시작으로도 세션을 종료할 수 있습니다.
 
-## DBeaver 결과가 바뀌지 않을 때
-
-- Swagger에서 `GET /api/dev/auth-data`를 실행해 현재 DB 이름과 행 수를 확인합니다.
-- DBeaver SQL 편집기의 연결이 `127.0.0.1:5433`, DB `boothrock`인지 확인하고 조회 SQL을 다시 실행합니다. Docker 내부에서 반환되는 포트 `5432`는 정상입니다.
-- 이미 열린 데이터 탭은 이전 조회 결과를 유지하므로 새로고침해야 합니다. 네비게이터의 테이블 목록 새로고침과 데이터 탭의 행 새로고침은 다릅니다.
-- 로그인·로그아웃으로는 DB 행이 바뀌지 않습니다. 새 데이터는 회원가입 201 뒤, 삭제는 DELETE 204 뒤 확인합니다.
-- API 개수와 SQL 개수가 다르면 연결 대상과 조회 필터를 확인합니다. 격리 수준이 REPEATABLE READ/SERIALIZABLE인 기존 트랜잭션이라면 미저장 편집을 확인하고 트랜잭션을 종료한 뒤 재조회합니다.
+전체 초기화가 필요한 경우에만 새 CSRF 토큰으로 `DELETE /api/dev/auth-data?confirmation=DELETE_LOCAL_DATA`를 실행합니다.
+이는 모든 로컬 계정·로그인 정보·조직·소속을 삭제합니다. 성공 204 후 `GET /api/dev/auth-data`로 0행을 확인합니다.
+삭제 후 기존 세션은 로그아웃하거나 서버를 재시작하고 다시 가입·로그인합니다. 일반 인증 테스트에는 이 삭제가 필요하지 않습니다.
 
 ## 한 번에 인증 확인
 
