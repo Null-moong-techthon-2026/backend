@@ -14,3 +14,7 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
+boothrock:
+  frontend:
+    origin: ${FRONTEND_ORIGIN:http://127.0.0.1:5173}
+    invite-base-url: ${FRONTEND_INVITE_BASE_URL:http://127.0.0.1:5173/invite}

@@ -1,16 +1,16 @@
 # 부스럭 백엔드
 
-행사 운영 서비스 부스럭의 백엔드입니다. **2026-10-03 현재 개인 계정 회원가입·로그인·로그아웃과 실제 PostgreSQL 연결까지 구현했습니다.** 행사·부스·지도 API는 구현 전입니다.
+행사 운영 서비스 부스럭의 백엔드. **`local` 프로필에서 인증, 행사·모집, 부스 신청·심사, 운영 현황, 지도, 공지 API 테스트 가능.** 같은 PC의 프론트 개발 서버(`http://127.0.0.1:5173`)에 로컬 CORS 허용. 배포용 인증과 파일 저장소는 미구현.
 
-## 처음 실행하기
+## 로컬 실행
 
-**Docker는 DB만 실행하고, 서버는 PC의 JDK 21로 실행합니다.** PostgreSQL·Gradle·DBeaver를 별도로 설치하거나 `.env` 파일을 만들 필요는 없습니다.
+**Docker는 DB만 실행. 서버는 로컬 JDK 21로 실행.** PostgreSQL·Gradle·DBeaver 별도 설치 및 `.env` 파일 불필요.
 
 ### 1. 준비
 
-- Git, **JDK 21**, Docker와 Docker Compose를 설치합니다.
-- macOS/Windows에서는 Docker Desktop을 실행하고 준비가 끝날 때까지 기다립니다. Linux에서는 Docker 엔진을 실행합니다.
-- 터미널에서 아래 명령이 정상 동작하는지 확인합니다. Java 버전은 21이어야 합니다.
+- Git, **JDK 21**, Docker와 Docker Compose 설치
+- macOS/Windows: Docker Desktop 실행 후 준비 완료 확인. Linux: Docker 엔진 실행
+- 아래 명령 확인. Java 버전은 21
 
 ```bash
 git --version
@@ -19,7 +19,7 @@ docker compose version
 docker info
 ```
 
-첫 실행은 PostgreSQL 이미지와 Gradle·라이브러리를 내려받으므로 인터넷 연결이 필요하며 시간이 걸릴 수 있습니다.
+첫 실행 시 PostgreSQL 이미지와 Gradle·라이브러리 다운로드. 인터넷 연결 필요.
 
 ### 2. 저장소 받기
 
@@ -28,7 +28,7 @@ git clone https://github.com/Null-moong-techthon-2026/backend.git
 cd backend
 ```
 
-이미 저장소를 받은 경우 새로 복제하지 않고 해당 `backend` 폴더를 사용합니다. 아래 명령도 모두 그 폴더에서 실행합니다.
+이미 저장소가 있다면 복제 생략. 이후 명령은 모두 `backend` 폴더에서 실행.
 
 ### 3. DB 실행
 
@@ -37,8 +37,8 @@ docker compose up -d --wait db
 docker compose ps
 ```
 
-`db`가 `healthy`이면 준비된 것입니다. DB는 `127.0.0.1:5433`에서 실행됩니다.
-**테이블은 다음 단계에서 서버가 처음 시작될 때 자동으로 생성됩니다. SQL을 직접 넣을 필요는 없습니다.**
+`db` 상태가 `healthy`이면 준비 완료. DB 주소: `127.0.0.1:5433`.
+**테이블은 서버 첫 실행 시 자동 생성. 수동 SQL 입력 불필요.**
 
 ### 4. 서버 실행
 
@@ -54,12 +54,12 @@ Windows PowerShell:
 .\gradlew.bat bootRun
 ```
 
-`Started BoothrockApiApplication` 로그가 나오면 서버가 준비된 것입니다. 실행 터미널은 계속 열어둡니다.
-기본 프로필은 `local`이고 서버 주소는 `http://127.0.0.1:8080`입니다.
+`Started BoothrockApiApplication` 로그 확인 후 서버 사용 가능. 실행 터미널 유지.
+기본 프로필: `local`. 서버 주소: `http://127.0.0.1:8080`.
 
 ### 5. 실행 확인
 
-브라우저에서 아래 주소를 엽니다. DB 내부를 직접 확인하지 않아도 됩니다.
+브라우저에서 아래 주소로 확인. DB 내부 조회는 선택 사항.
 
 | 확인 | 기본 주소 |
 | --- | --- |
@@ -68,19 +68,48 @@ Windows PowerShell:
 | DB 연결 상태 | [Readiness](http://127.0.0.1:8080/actuator/health/readiness) |
 | OpenAPI JSON | [API 명세](http://127.0.0.1:8080/v3/api-docs) |
 
-Swagger와 API 호출은 같은 브라우저에서 같은 호스트를 사용합니다. 예를 들어 `127.0.0.1`과 `localhost`를 혼용하면 세션 쿠키가 공유되지 않습니다.
+Swagger와 API 호출에는 같은 호스트 사용. `127.0.0.1`과 `localhost` 혼용 시 세션 쿠키가 공유되지 않음.
 
-새 PC의 DB에는 계정이 없습니다. 로그인 테스트는 아래 Swagger 안내에 따라 먼저 회원가입한 뒤 진행합니다.
+새 DB에는 계정 없음. 로그인 테스트 전 아래 Swagger 절차로 회원가입 필요.
+
+### 6. 프론트엔드 연동 (로컬)
+
+이 저장소에는 **백엔드만** 포함. 프론트 프로젝트 실행은 검증 범위 밖. 브라우저 연동 조건은 아래와 같음.
+
+| 항목 | 기본값 / 규칙 |
+| --- | --- |
+| API 주소 | `http://127.0.0.1:8080/api` |
+| 허용 프론트 출처 | `http://127.0.0.1:5173` 한 곳. `local`에서만 쿠키 포함 CORS 허용 |
+| 인증 | 서버 세션 쿠키. 모든 `fetch` 요청에 `credentials: 'include'` 사용 |
+| 변경 요청 | 먼저 `GET /api/auth/csrf` 후 반환된 토큰을 `X-CSRF-TOKEN` 헤더에 전송. **로그인 후 토큰 재조회** |
+| 이미지 | `readUrl`, `imageUrl`, `posterUrl`은 `/api/...` 상대 경로. 다른 출처에서 사용할 때 API 주소의 출처를 앞에 붙임 |
+| ID·동시 수정 | 실제 UUID를 경로에 넣고, 수정 요청에는 직전 조회 결과의 `revision` 사용 |
+
+Vite 실행 예: `npm run dev -- --host 127.0.0.1`. `localhost:5173`에서 `127.0.0.1:8080` 직접 호출 시 쿠키 사이트 정책과 허용 출처가 다름. 프론트 포트 변경 시 백엔드 실행 전에 `FRONTEND_ORIGIN=http://127.0.0.1:<포트>` 설정. 초대 링크 사용 시 `FRONTEND_INVITE_BASE_URL=http://127.0.0.1:<포트>/invite`도 설정. 백엔드 포트 변경 시 프론트 API 주소도 동일하게 변경.
+
+```js
+const API = 'http://127.0.0.1:8080';
+const csrf = await fetch(`${API}/api/auth/csrf`, { credentials: 'include' }).then(r => r.json());
+await fetch(`${API}/api/auth/login`, {
+  method: 'POST',
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf.token },
+  body: JSON.stringify({ loginId, password }),
+});
+// 로그인 후 GET /api/auth/csrf를 다시 호출해 변경 요청에 사용할 토큰 조회.
+```
+
+현재 요청·응답 계약: [OpenAPI JSON](http://127.0.0.1:8080/v3/api-docs). 구현 순서와 필수 필드: [화면 흐름 테스트 안내](docs/WORKFLOW_TEST.md). 서버는 `127.0.0.1`에만 바인딩되므로 다른 PC에서는 백엔드와 DB를 각각 로컬 실행해야 함. 현재 `deploy` 프로필에서는 업무·인증 API 미노출.
 
 ### 종료와 다시 실행
 
-서버 터미널에서 `Ctrl+C`를 누른 다음 DB를 중지합니다.
+서버 터미널에서 `Ctrl+C`로 종료 후 DB 중지:
 
 ```bash
 docker compose stop db
 ```
 
-다음에는 Docker를 실행하고 **3번(DB 실행) → 4번(서버 실행)**만 반복합니다. 기존 데이터는 유지됩니다.
+재실행 시 Docker 시작 후 **3번(DB 실행) → 4번(서버 실행)** 반복. 기존 데이터 유지.
 
 ### 실행이 안 될 때
 
@@ -101,7 +130,7 @@ docker compose stop db
 .\gradlew.bat bootRun --args="--server.port=8081"
 ```
 
-다른 포트를 사용하면 Swagger 주소의 포트도 바꿉니다. DB가 계속 시작되지 않을 때는 데이터를 삭제하지 말고 로그를 공유합니다.
+포트 변경 시 Swagger 주소의 포트도 변경. DB 시작 실패가 계속되면 데이터를 삭제하지 말고 로그 확인.
 
 ## 현재 구현 범위
 
@@ -110,15 +139,16 @@ docker compose stop db
 | 개인 회원가입·아이디 중복 확인 | 구현 완료. DB UNIQUE 제약으로 중복 방지 |
 | 로그인·내 정보·로그아웃 | 구현 완료. Spring Security 세션 쿠키 사용 |
 | 비밀번호 저장 | BCrypt 해시 사용. 로그인 아이디는 원문 저장 |
-| 계정·조직 DB 구조 | Flyway V1/V2 적용, `app` 스키마 사용 |
-| 조직 생성·초대·관리 권한 | 구현 전. 회원가입으로 조직이나 OWNER 소속을 생성하지 않음 |
-| 로컬 DB 개수 조회·전체 삭제 | 로컬 테스트 전용 API 제공 |
-| 행사·부스·지도·공지 업무 API | 구현 전 |
+| 계정·행사·부스 DB 구조 | Flyway V1/V2/V3 적용, `app` 스키마 사용 |
+| 조직 생성·초대·관리 권한 | 로컬 테스트 조직 생성만 제공. 회원가입으로 OWNER 소속을 생성하지 않음 |
+| 로컬 DB 개수 조회·인증 데이터 삭제 | 로컬 테스트 전용 API 제공. 행사 데이터가 있으면 삭제는 409 |
+| 행사·모집·부스·운영·지도·공지 업무 API | `local` 프로필에서 구현·통합 테스트. [화면 흐름 안내](docs/WORKFLOW_TEST.md) 참조 |
 | 전화번호·이메일 인증, 비밀번호 재설정 | 구현 전 |
-| 프론트엔드 CORS·공개 운영 인증 | 구현 전 |
+| 프론트엔드 CORS | `local`에서 `http://127.0.0.1:5173` 허용. 쿠키 포함 요청 가능 |
+| 공개 운영 인증·배포 | 구현 전. `deploy` 프로필에서는 업무 API 미노출 |
 
-`onboardingType`은 가입 후 화면 선택용이며 조직 소속이나 권한을 부여하지 않습니다. 현재 계정 권한으로 저장하지 않습니다.
-인증·테스트 API와 Swagger는 `local`에서만 활성화됩니다. `deploy` 또는 `local+deploy`에서는 인증·테스트 경로를 열지 않습니다.
+`onboardingType`은 가입 후 화면 선택용. 조직 소속이나 권한을 부여하지 않으며 계정 권한으로 저장하지 않음.
+인증·업무·테스트 API와 Swagger는 `local`에서만 활성화. `deploy` 또는 `local+deploy`에서는 해당 경로 미노출.
 
 기술 구성: Spring Boot 4.1.1 / Gradle Wrapper 9.7.1 / PostgreSQL 17 / Flyway / Spring Data JPA / springdoc-openapi.
 
@@ -133,7 +163,7 @@ docker compose stop db
 | `GET /api/me` | 현재 로그인한 본인 정보 조회 |
 | `POST /api/auth/logout` | 세션 종료 |
 | `GET /api/dev/auth-data` | 현재 연결한 DB 이름·테이블별 행 수·조회 시각 확인 |
-| `DELETE /api/dev/auth-data?confirmation=DELETE_LOCAL_DATA` | 로컬 계정·조직 데이터 전체 삭제 |
+| `DELETE /api/dev/auth-data?confirmation=DELETE_LOCAL_DATA` | 행사 데이터가 없을 때만 로컬 계정·조직 데이터 삭제 |
 
 회원가입 예시:
 
@@ -148,50 +178,50 @@ docker compose stop db
 }
 ```
 
-운영자 화면을 선택하려면 `onboardingType`을 `OPERATOR`로 바꿉니다.
-`organizationName`, `organizationId`, `role` 등 정의하지 않은 필드는 400으로 거절합니다.
-Swagger의 예시는 입력값이며, 계정은 가입 요청을 실행해야 생성됩니다. 자동 더미 생성은 없습니다.
+운영자 화면 선택 시 `onboardingType`을 `OPERATOR`로 변경.
+`organizationName`, `organizationId`, `role` 등 정의되지 않은 필드는 400 응답.
+Swagger 예시는 입력값일 뿐이며 가입 요청 실행 시 계정 생성. 자동 더미 생성 없음.
 
 ## Swagger로 테스트
 
-1. `GET /api/auth/csrf`를 실행하고 응답의 `token`을 복사합니다. 세션 쿠키는 브라우저에 자동 저장됩니다.
-2. `POST /api/auth/sign-up`에서 예시를 선택하고 `X-CSRF-TOKEN`에 토큰을 넣어 실행합니다. 성공은 **201**, 같은 아이디로 재가입하면 **409**입니다.
-3. `GET /api/dev/auth-data`로 계정·로그인 정보 개수가 증가했는지 확인합니다. 조직·소속은 증가하지 않습니다.
-4. `POST /api/auth/login`에 가입한 아이디·비밀번호와 같은 CSRF 토큰을 넣습니다. 성공은 **200**입니다.
-5. `GET /api/me`를 실행해 로그인한 계정 정보를 확인합니다.
-6. CSRF 토큰을 다시 조회한 뒤 `POST /api/auth/logout`을 실행합니다. 성공은 **204**, 이후 `GET /api/me`는 **401**입니다.
+1. `GET /api/auth/csrf` 실행 후 응답의 `token` 복사. 세션 쿠키는 브라우저에 자동 저장.
+2. `POST /api/auth/sign-up`에서 예시 선택 후 `X-CSRF-TOKEN`에 토큰 입력. 성공 **201**, 동일 아이디 재가입 **409**.
+3. `GET /api/dev/auth-data`로 계정·로그인 정보 개수 증가 확인. 조직·소속은 증가하지 않음.
+4. `POST /api/auth/login`에 가입한 아이디·비밀번호와 같은 CSRF 토큰 입력. 성공 **200**.
+5. `GET /api/me`로 로그인 계정 정보 확인.
+6. CSRF 토큰 재조회 후 `POST /api/auth/logout` 실행. 성공 **204**, 이후 `GET /api/me`는 **401**.
 
-로그인 성공 시 세션 ID와 CSRF 토큰이 교체됩니다. 토큰 없이 변경 요청을 보내면 거부됩니다.
-로그인·로그아웃은 서버 메모리의 세션을 변경하므로 DB 행 수가 바뀌지 않습니다.
-자세한 curl 예시는 [인증 실행 안내](docs/AUTH_START.md)에 있습니다.
+로그인 성공 시 세션 ID와 CSRF 토큰 교체. 토큰 없는 변경 요청은 거부.
+로그인·로그아웃은 서버 메모리의 세션만 변경하므로 DB 행 수는 그대로 유지.
+curl 예시: [인증 실행 안내](docs/AUTH_START.md). 행사부터 방문객 조회까지의 수동 검증: [화면 흐름 테스트 안내](docs/WORKFLOW_TEST.md).
 
-DB 내부 확인이 필요한 백엔드 담당자는 [선택 사항: DBeaver·SQL 안내](docs/local-db/README.md)를 참고합니다.
+DB 직접 조회: [DBeaver·SQL 안내](docs/local-db/README.md) (선택 사항).
 
 ## 테스트 명령
 
-자동 테스트와 JAR 빌드:
+전체 자동 테스트와 JAR 빌드(Docker 필요):
 
 ```bash
-./gradlew test integrationTest bootJar
+./gradlew check bootJar
 ```
 
-`integrationTest`는 Docker에 별도의 임시 PostgreSQL을 생성하므로 실제 개발 DB와 분리됩니다.
-현재 16개 테스트로 계정 저장·중복 거절·세션·CSRF·조직 권한 입력 거부·데이터 초기화를 검증합니다.
-JAR 결과물은 `build/libs/app.jar`입니다.
+Docker 없이 컴파일·단위 테스트만 실행: `./gradlew test`. `integrationTest`는 Docker에 별도의 임시 PostgreSQL을 생성하며 실제 개발 DB와 분리.
+PostgreSQL 통합 테스트 범위: 인증, 행사 생성·모집·신청/승인, 부스 운영, 핀 지도, 공지, 공개 범위.
+JAR 결과물: `build/libs/app.jar`.
 
-실행 중인 로컬 서버의 실제 HTTP 흐름을 확인하려면 `curl`·`jq`가 필요합니다.
+실행 중인 로컬 서버의 HTTP 흐름 검증에는 `curl`·`jq` 필요.
 
 ```bash
 bash scripts/test-auth.sh
 # 다른 포트: bash scripts/test-auth.sh http://127.0.0.1:8081
 ```
 
-스크립트는 CSRF 없는 가입 거부, 조직·권한 필드 거부, 가입, 중복 가입 거부, 로그인, 내 정보, 로그아웃을 확인합니다.
-매 실행마다 고유 아이디의 개인 계정 1개를 만들고 DBeaver 확인을 위해 남깁니다. 조직·소속을 생성하거나 기존 데이터를 전체 삭제하지 않습니다.
+검증 항목: CSRF 없는 가입 거부, 조직·권한 필드 거부, 가입, 중복 가입 거부, 로그인, 내 정보, 로그아웃.
+매 실행마다 고유 아이디의 개인 계정 1개 생성·유지. 조직·소속 생성 및 기존 데이터 전체 삭제 없음.
 
 ## 종료·데이터 초기화
 
-서버는 실행 터미널에서 `Ctrl+C`로 종료합니다.
+서버 종료: 실행 터미널에서 `Ctrl+C`.
 
 ```bash
 docker compose stop db
@@ -199,13 +229,13 @@ docker compose stop db
 docker compose down
 ```
 
-DB는 named volume에 저장되어 재실행해도 데이터가 유지됩니다.
-Flyway는 새 migration만 적용하며 Hibernate의 `ddl-auto=validate`는 테이블을 재생성하지 않습니다.
-기존 볼륨의 DB 비밀번호는 Compose 값을 바꿔도 자동 변경되지 않습니다.
+DB 데이터는 named volume에 저장되며 재실행 후에도 유지.
+Flyway는 새 migration만 적용. Hibernate의 `ddl-auto=validate`는 테이블을 재생성하지 않음.
+Compose 설정값을 바꿔도 기존 볼륨의 DB 비밀번호는 자동 변경되지 않음.
 
-데이터 행만 비우려면 로컬 DELETE API에 새 CSRF 토큰과 `confirmation=DELETE_LOCAL_DATA`를 넣거나 [삭제 SQL](docs/local-db/clear-auth-data.sql)을 실행합니다.
-이 작업은 **모든 계정·로그인 정보·조직·소속을 삭제**하지만 테이블 구조와 migration 이력은 유지합니다.
-`docker compose down -v`는 DB 볼륨까지 삭제하므로 완전 초기화가 필요한 경우에만 사용합니다.
+행사가 없는 초기 인증 실험에서만 로컬 DELETE API에 새 CSRF 토큰과 `confirmation=DELETE_LOCAL_DATA`를 전달하거나 [삭제 SQL](docs/local-db/clear-auth-data.sql) 실행.
+행사 데이터가 있으면 DELETE API는 **409**를 반환하고 계정·조직은 유지. 업무 데이터는 삭제하지 않음.
+`docker compose down -v`는 DB 볼륨까지 삭제. 완전 초기화가 필요한 경우에만 사용.
 
 ## 코드 구성
 
@@ -217,6 +247,11 @@ src/main/java/kr/boothrock/api/
     entity/        계정·로그인 정보·조직·소속 매핑
     repository/    DB 조회
     service/       가입·인증·세션 처리
+  event/           행사·모집·초대·대시보드
+  booth/           프로필·신청 심사·부스·운영·상품
+  map/             이미지·지도 초안·핀·게시
+  announcement/    공지 작성·대상별 읽기
+  common/          SQL 및 업무 오류·권한
   config/          보안·OpenAPI 설정
   dev/             로컬 데이터 확인·초기화
   system/          서버 상태 확인
@@ -224,8 +259,9 @@ src/main/resources/db/migration/  실제 앱 DB migration
 src/test/                        자동 테스트
 scripts/test-auth.sh              로컬 HTTP 검증
 docs/AUTH_START.md                인증 테스트 안내
+docs/WORKFLOW_TEST.md             화면 흐름 테스트 안내
 docs/local-db/                   DBeaver SQL
 ```
 
-`Dockerfile`은 서버 이미지 빌드 구성을 제공합니다. 이미지의 기본 프로필은 `deploy`이며 현재 인증·테스트 API는 공개하지 않습니다.
-적용된 migration 파일은 수정하지 않고 변경 시 새 migration을 추가합니다.
+`Dockerfile`: 서버 이미지 빌드 구성. 이미지 기본 프로필은 `deploy`이며 현재 인증·업무 API 미노출.
+적용된 migration 파일은 수정하지 않고 변경 시 새 migration 추가.

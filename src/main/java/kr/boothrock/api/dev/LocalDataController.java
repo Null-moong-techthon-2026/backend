@@ -78,6 +78,11 @@ public class LocalDataController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "confirmation must be DELETE_LOCAL_DATA");
         }
+        Long eventCount = jdbc.queryForObject("SELECT count(*) FROM app.events", Long.class);
+        if (eventCount != null && eventCount > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Event data exists; this endpoint only deletes unused authentication data");
+        }
         memberships.deleteAllInBatch();
         organizations.deleteAllInBatch();
         credentials.deleteAllInBatch();

@@ -10,6 +10,7 @@ import org.springframework.core.env.Profiles;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
@@ -30,11 +31,13 @@ public class SecurityConfig {
             SecurityContextRepository contextRepository,
             CsrfTokenRepository csrfRepository,
             @Value("${springdoc.api-docs.enabled:false}") boolean docsEnabled) throws Exception {
+        boolean local = environment.acceptsProfiles(Profiles.of("local & !deploy"));
+        if (local) http.cors(Customizer.withDefaults());
         http.authorizeHttpRequests(authorize -> {
             authorize.requestMatchers(HttpMethod.GET,
                     "/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness",
                     "/api/system/status").permitAll();
-            if (environment.acceptsProfiles(Profiles.of("local & !deploy"))) {
+            if (local) {
                 authorize.requestMatchers(HttpMethod.GET, "/api/auth/csrf",
                         "/api/auth/login-id-availability", "/api/dev/auth-data").permitAll();
                 authorize.requestMatchers(HttpMethod.POST, "/api/auth/login",
@@ -42,6 +45,10 @@ public class SecurityConfig {
                 authorize.requestMatchers(HttpMethod.DELETE, "/api/dev/auth-data").permitAll();
                 authorize.requestMatchers(HttpMethod.GET, "/api/me").authenticated();
                 authorize.requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated();
+                authorize.requestMatchers(HttpMethod.GET, "/api/public/**", "/api/media-assets/*/content").permitAll();
+                authorize.requestMatchers(HttpMethod.POST, "/api/application-invitations/resolve").permitAll();
+                authorize.requestMatchers("/api/events/**", "/api/organizations/**", "/api/me/**").authenticated();
+                authorize.requestMatchers(HttpMethod.POST, "/api/dev/organizations").authenticated();
             }
             if (docsEnabled) {
                 authorize.requestMatchers(HttpMethod.GET,

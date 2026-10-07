@@ -32,8 +32,8 @@ spring:
     validate-migration-naming: true
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 6MB
+      max-file-size: 10MB
+      max-request-size: 11MB
 server:
   port: ${PORT:${SERVER_PORT:8080}}
   shutdown: graceful
