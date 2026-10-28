@@ -12,13 +12,11 @@ import kr.boothrock.api.auth.AccountPrincipal;
 import kr.boothrock.api.event.dto.EventRequests;
 import kr.boothrock.api.event.service.DashboardService;
 import kr.boothrock.api.event.service.EventService;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@Profile("local & !deploy")
 @RequestMapping("/api")
 @Tag(name="행사",description="행사 선택, 공통 네비게이션 및 행사 정보")
 public class EventController {

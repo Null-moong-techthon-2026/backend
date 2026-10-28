@@ -7,7 +7,6 @@ import java.util.UUID;
 import kr.boothrock.api.booth.dto.BoothQuery;
 import kr.boothrock.api.booth.service.BoothService;
 import org.springdoc.core.annotations.ParameterObject;
-import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,7 +14,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Profile("local & !deploy")
 @RequestMapping("/api/public/events/{eventId}/booths")
 @Tag(name = "Public booths")
 public class PublicBoothController {

@@ -15,7 +15,7 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
-@RestControllerAdvice(basePackages = {"kr.boothrock.api.event", "kr.boothrock.api.booth", "kr.boothrock.api.map", "kr.boothrock.api.announcement"})
+@RestControllerAdvice(basePackages = {"kr.boothrock.api.event", "kr.boothrock.api.booth", "kr.boothrock.api.map", "kr.boothrock.api.announcement", "kr.boothrock.api.eventapplication"})
 public class BusinessExceptionHandler {
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<?> business(ApiException error) {

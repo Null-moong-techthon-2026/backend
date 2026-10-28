@@ -14,13 +14,11 @@ import kr.boothrock.api.booth.dto.BoothRequests.PatchBooth;
 import kr.boothrock.api.booth.dto.BoothRequests.PatchItem;
 import kr.boothrock.api.booth.service.BoothService;
 import org.springdoc.core.annotations.ParameterObject;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@Profile("local & !deploy")
 @RequestMapping("/api")
 @Tag(name = "Booths and operations")
 public class BoothController {

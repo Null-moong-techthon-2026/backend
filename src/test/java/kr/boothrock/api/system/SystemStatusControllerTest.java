@@ -47,8 +47,10 @@ class SystemStatusControllerTest {
     }
 
     @Test
-    void evenAnAuthenticatedUserCannotAccessUnimplementedRoutes() throws Exception {
-        mvc.perform(get("/api/events").with(user("test-user")))
+    void evenAnAuthenticatedUserCannotAccessRoutesThatAreNotOpened() throws Exception {
+        // The business routes under /api/events are open to logged-in users (their services check ownership);
+        // everything that is not explicitly opened stays denied.
+        mvc.perform(get("/api/not-opened").with(user("test-user")))
                 .andExpect(status().isForbidden());
     }
 
@@ -59,8 +61,8 @@ class SystemStatusControllerTest {
     }
 
     @Test
-    void csrfDoesNotGrantBusinessPermission() throws Exception {
-        mvc.perform(post("/api/events").with(user("test-user")).with(csrf()))
+    void csrfDoesNotGrantPermissionOnRoutesThatAreNotOpened() throws Exception {
+        mvc.perform(post("/api/not-opened").with(user("test-user")).with(csrf()))
                 .andExpect(status().isForbidden());
     }
 

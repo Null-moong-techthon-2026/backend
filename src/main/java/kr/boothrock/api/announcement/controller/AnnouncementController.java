@@ -9,7 +9,6 @@ import kr.boothrock.api.announcement.dto.CreateAnnouncementRequest;
 import kr.boothrock.api.announcement.dto.UpdateAnnouncementRequest;
 import kr.boothrock.api.announcement.service.AnnouncementService;
 import kr.boothrock.api.auth.AccountPrincipal;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -24,7 +23,6 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Profile("local & !deploy")
 @RequestMapping("/api/events/{eventId}/announcements")
 @Tag(name = "Announcements", description = "Event announcements and audience-aware participant reading")
 public class AnnouncementController {

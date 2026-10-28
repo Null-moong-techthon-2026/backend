@@ -5,11 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import kr.boothrock.api.common.repository.SqlStore;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 @Repository
-@Profile("local & !deploy")
 public class AnnouncementRepository {
     public record Readers(boolean manager, boolean staff, boolean operator) {}
 

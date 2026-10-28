@@ -7,13 +7,11 @@ import kr.boothrock.api.announcement.service.AnnouncementService;
 import kr.boothrock.api.booth.repository.BoothRepository;
 import kr.boothrock.api.common.service.EventAccess;
 import kr.boothrock.api.common.service.Rules;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Profile("local & !deploy")
 @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
 public class DashboardService {
     private final EventAccess access;

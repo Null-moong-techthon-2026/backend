@@ -20,6 +20,8 @@ public class AccountEntity {
     private String phoneNumber;
     @Column(nullable = false, length = 254)
     private String email;
+    @Column(name = "platform_role", nullable = false, length = 20)
+    private String platformRole;
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;
     @Column(name = "created_at", nullable = false)
@@ -33,6 +35,7 @@ public class AccountEntity {
         this.id = UUID.randomUUID();
         this.nickname = nickname;
         this.accountStatus = "ACTIVE";
+        this.platformRole = "USER";
         this.phoneNumber = phoneNumber;
         this.email = email;
         this.createdAt = Instant.now();
@@ -42,6 +45,7 @@ public class AccountEntity {
     public UUID getId() { return id; }
     public String getNickname() { return nickname; }
     public String getAccountStatus() { return accountStatus; }
+    public String getPlatformRole() { return platformRole; }
     public String getPhoneNumber() { return phoneNumber; }
     public String getEmail() { return email; }
 }

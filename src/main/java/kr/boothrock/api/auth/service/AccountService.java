@@ -57,6 +57,6 @@ public class AccountService {
                 .filter(value -> "ACTIVE".equals(value.getAccountStatus()))
                 .orElseThrow(() -> new AuthInputException("ACCOUNT_UNAVAILABLE", "Account is unavailable."));
         return new AccountResponse(account.getId(), account.getNickname(),
-                account.getPhoneNumber(), account.getEmail());
+                account.getPhoneNumber(), account.getEmail(), account.getPlatformRole());
     }
 }

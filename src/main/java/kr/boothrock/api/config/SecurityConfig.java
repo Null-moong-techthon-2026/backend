@@ -37,17 +37,20 @@ public class SecurityConfig {
             authorize.requestMatchers(HttpMethod.GET,
                     "/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness",
                     "/api/system/status").permitAll();
+            // Sign-up / login and the business API: every profile (local and deploy).
+            authorize.requestMatchers(HttpMethod.GET, "/api/auth/csrf", "/api/auth/login-id-availability").permitAll();
+            authorize.requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/sign-up").permitAll();
+            authorize.requestMatchers(HttpMethod.GET, "/api/me").authenticated();
+            authorize.requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated();
+            authorize.requestMatchers(HttpMethod.GET, "/api/public/**", "/api/media-assets/*/content").permitAll();
+            authorize.requestMatchers(HttpMethod.POST, "/api/application-invitations/resolve").permitAll();
+            // Being logged in is enough here; ownership / the platform-admin role is checked in the services.
+            authorize.requestMatchers("/api/events/**", "/api/organizations/**", "/api/me/**",
+                    "/api/event-applications/**", "/api/admin/**").authenticated();
             if (local) {
-                authorize.requestMatchers(HttpMethod.GET, "/api/auth/csrf",
-                        "/api/auth/login-id-availability", "/api/dev/auth-data").permitAll();
-                authorize.requestMatchers(HttpMethod.POST, "/api/auth/login",
-                        "/api/auth/sign-up").permitAll();
+                // Development helpers only: they do not exist in the deploy profile.
+                authorize.requestMatchers(HttpMethod.GET, "/api/dev/auth-data").permitAll();
                 authorize.requestMatchers(HttpMethod.DELETE, "/api/dev/auth-data").permitAll();
-                authorize.requestMatchers(HttpMethod.GET, "/api/me").authenticated();
-                authorize.requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated();
-                authorize.requestMatchers(HttpMethod.GET, "/api/public/**", "/api/media-assets/*/content").permitAll();
-                authorize.requestMatchers(HttpMethod.POST, "/api/application-invitations/resolve").permitAll();
-                authorize.requestMatchers("/api/events/**", "/api/organizations/**", "/api/me/**").authenticated();
                 authorize.requestMatchers(HttpMethod.POST, "/api/dev/organizations").authenticated();
             }
             if (docsEnabled) {

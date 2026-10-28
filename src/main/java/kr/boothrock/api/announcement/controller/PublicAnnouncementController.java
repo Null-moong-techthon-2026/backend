@@ -5,7 +5,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.Map;
 import java.util.UUID;
 import kr.boothrock.api.announcement.service.AnnouncementService;
-import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Profile("local & !deploy")
 @RequestMapping("/api/public/events/{eventId}/announcements")
 @Tag(name = "Public announcements", description = "Published PUBLIC announcements of published events")
 public class PublicAnnouncementController {
