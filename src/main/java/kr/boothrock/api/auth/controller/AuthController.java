@@ -11,6 +11,7 @@ import kr.boothrock.api.auth.dto.SignupRequest;
 import kr.boothrock.api.auth.dto.SignupResponse;
 import kr.boothrock.api.auth.service.AccountService;
 import kr.boothrock.api.auth.service.SessionService;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -31,6 +32,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
+@Profile("local & !deploy")
 @RequestMapping("/api")
 @Tag(name = "인증")
 public class AuthController {

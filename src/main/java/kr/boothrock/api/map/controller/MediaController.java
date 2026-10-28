@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.UUID;
 import kr.boothrock.api.auth.AccountPrincipal;
 import kr.boothrock.api.map.service.MediaService;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
+@Profile("local & !deploy")
 @RequestMapping("/api")
 @Tag(name = "Media")
 public class MediaController {

@@ -10,10 +10,12 @@ import java.util.UUID;
 import kr.boothrock.api.auth.AccountPrincipal;
 import kr.boothrock.api.event.dto.EventRequests;
 import kr.boothrock.api.event.service.RecruitmentService;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@Profile("local & !deploy")
 @RequestMapping("/api")
 @Tag(name="부스 모집")
 public class RecruitmentController {
