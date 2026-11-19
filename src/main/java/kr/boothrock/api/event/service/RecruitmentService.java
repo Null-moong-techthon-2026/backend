@@ -27,13 +27,16 @@ public class RecruitmentService {
     }
     public Map<String,Object> get(UUID eventId,UUID actor) {
         access.requireManager(eventId,actor);
-        return withStatus(events.recruitment(eventId));
+        return withStatus(events.recruitment(eventId),(Instant)events.event(eventId).get("endsAt"));
     }
     @Transactional
     public Map<String,Object> save(UUID eventId,UUID actor,EventRequests.Recruitment request) {
         access.requireManager(eventId,actor); access.lockEvent(eventId);
         Map<String,Object> existing=events.recruitment(eventId);
         Rules.revision(request.revision(),existing);
+        Instant eventEnd=(Instant)events.event(eventId).get("endsAt");
+        Rules.input(request.closesAt()==null||eventEnd==null||!request.closesAt().isAfter(eventEnd),
+                "Recruitment closesAt must be no later than event endsAt.");
         Rules.enumValue(request.publicationStatus(),"DRAFT","PUBLISHED");
         validateCategories(request.allowedCategoryCodes());
         Rules.input(!"PUBLISHED".equals(request.publicationStatus())||(request.closesAt()!=null&&!request.allowedCategoryCodes().isEmpty()),
@@ -45,6 +48,13 @@ public class RecruitmentService {
             if(document.id()!=null) {
                 Rules.input(ids.add(document.id()),"Document IDs must be unique.");
                 db.one("SELECT id FROM app.recruitment_document_requirements WHERE id=? AND event_id=?",document.id(),eventId);
+            }
+        }
+        if(request.additionalQuestions()!=null) {
+            var questionIds=new HashSet<UUID>();
+            for(var q:request.additionalQuestions()) if(q.id()!=null) {
+                Rules.input(questionIds.add(q.id()),"Question IDs must not repeat");
+                db.one("select id from app.recruitment_questions where id=? and event_id=?",q.id(),eventId);
             }
         }
         boolean locked=db.count("SELECT count(*) FROM app.booth_applications WHERE event_id=?",eventId)>0;
@@ -61,11 +71,32 @@ public class RecruitmentService {
                     """,document.id()==null?UUID.randomUUID():document.id(),eventId,document.name().trim(),document.isRequired(),
                     document.applicableCategoryCodes().toArray(String[]::new),document.sortOrder());
         }
+        if(request.additionalQuestions()!=null) {
+            var previous=events.questions(eventId);
+            if(locked) {
+                boolean same=previous.size()==request.additionalQuestions().size()&&request.additionalQuestions().stream().allMatch(q->previous.stream().anyMatch(old->
+                    Objects.equals(old.get("id"),q.id())&&Objects.equals(old.get("question"),q.question().trim())
+                    &&Objects.equals(old.get("isRequired"),q.isRequired())&&Objects.equals(old.get("sortOrder"),q.sortOrder())));
+                Rules.require(same,"RECRUITMENT_TERMS_LOCKED","Questions cannot change after the first application");
+            } else {
+                db.update("delete from app.recruitment_questions where event_id=?",eventId);
+                for(var q:request.additionalQuestions()) db.update("insert into app.recruitment_questions(id,event_id,question,is_required,sort_order) values (?,?,?,?,?)",
+                    q.id()==null?UUID.randomUUID():q.id(),eventId,q.question().trim(),q.isRequired(),q.sortOrder());
+            }
+        }
         db.update("""
                 UPDATE app.event_recruitments SET introduction=?,publication_status=?,closes_at=?,target_booth_count=?,
-                    allowed_category_codes=?,participation_fee_krw=?,fee_note=?,revision=revision+1,updated_at=now() WHERE event_id=?
+                    allowed_category_codes=?,participation_fee_krw=?,fee_note=?,contact_phone=coalesce(?,contact_phone),revision=revision+1,updated_at=now() WHERE event_id=?
                 """,request.introduction(),request.publicationStatus(),request.closesAt(),request.targetBoothCount(),
-                request.allowedCategoryCodes().toArray(String[]::new),request.participationFeeKrw(),request.feeNote(),eventId);
+                request.allowedCategoryCodes().toArray(String[]::new),request.participationFeeKrw(),request.feeNote(),request.contactPhone(),eventId);
+        // Never extend an existing token. Shortening a deadline must preserve the code's usability
+        // until the new deadline instead of creating a resolve/apply mismatch.
+        if(request.closesAt()!=null) db.update("""
+                UPDATE app.event_application_invites
+                SET expires_at=CASE WHEN ? > created_at THEN ? ELSE expires_at END,
+                    revoked_at=CASE WHEN ? <= created_at THEN greatest(clock_timestamp(),created_at) ELSE revoked_at END
+                WHERE event_id=? AND revoked_at IS NULL AND expires_at>?
+                """,request.closesAt(),request.closesAt(),request.closesAt(),eventId,request.closesAt());
         events.audit(eventId,actor,"RECRUITMENT_UPDATED","EVENT_RECRUITMENT",eventId);
         return get(eventId,actor);
     }
@@ -86,16 +117,16 @@ public class RecruitmentService {
         return publicData(event,events.recruitment(eventId));
     }
     private Map<String,Object> publicData(Map<String,Object> event,Map<String,Object> row) {
-        Map<String,Object> result=withStatus(row);
+        Map<String,Object> result=withStatus(row,(Instant)event.get("endsAt"));
         result.remove("revision");
         result.put("event",event);
         return result;
     }
-    private Map<String,Object> withStatus(Map<String,Object> row) {
+    private Map<String,Object> withStatus(Map<String,Object> row,Instant eventEnd) {
         String status="DRAFT";
         if("PUBLISHED".equals(row.get("publicationStatus"))) {
             Instant closing=(Instant)row.get("closesAt");
-            status=closing!=null&&closing.isAfter(Instant.now())?"OPEN":"CLOSED";
+            status=closing!=null&&closing.isAfter(Instant.now())&&(eventEnd==null||eventEnd.isAfter(Instant.now()))?"OPEN":"CLOSED";
         }
         row.put("recruitmentStatus",status);
         return row;

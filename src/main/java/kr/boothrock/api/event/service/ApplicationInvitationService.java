@@ -34,9 +34,9 @@ public class ApplicationInvitationService {
     public Map<String,Object> get(UUID eventId,UUID actor) {
         access.requireManager(eventId,actor);
         Map<String,Object> row=db.optional("""
-                SELECT i.id,i.created_at,i.expires_at,
-                       (i.expires_at>now() AND r.publication_status='PUBLISHED' AND r.closes_at>now()
-                           AND e.publication_status<>'ARCHIVED') AS active
+                SELECT i.id,i.created_at,least(i.expires_at,r.closes_at) AS expires_at,
+                       coalesce((least(i.expires_at,r.closes_at)>clock_timestamp() AND r.publication_status='PUBLISHED'
+                           AND r.closes_at>clock_timestamp() AND (e.ends_at is null or e.ends_at>clock_timestamp()) AND e.publication_status<>'ARCHIVED'),false) AS active
                 FROM app.event_application_invites i JOIN app.event_recruitments r ON r.event_id=i.event_id
                 JOIN app.events e ON e.id=i.event_id WHERE i.event_id=? AND i.revoked_at IS NULL
                 """,eventId);
@@ -46,13 +46,14 @@ public class ApplicationInvitationService {
     public Map<String,Object> create(UUID eventId,UUID actor,Instant expiresAt) {
         access.requireManager(eventId,actor); access.lockEvent(eventId);
         Map<String,Object> terms=db.one("""
-                SELECT r.closes_at,r.publication_status,e.publication_status AS event_publication
+                SELECT r.closes_at,r.publication_status,e.ends_at,e.publication_status AS event_publication
                 FROM app.event_recruitments r JOIN app.events e ON e.id=r.event_id WHERE r.event_id=?
                 """,eventId);
         Rules.require("PUBLISHED".equals(terms.get("publicationStatus"))&&!"ARCHIVED".equals(terms.get("eventPublication")),
                 "RECRUITMENT_CLOSED","Publish recruitment before issuing an invitation.");
         Instant closes=(Instant)terms.get("closesAt");
-        Rules.input(expiresAt.isAfter(Instant.now())&&closes!=null&&!expiresAt.isAfter(closes),"Invitation must expire in the future and no later than recruitment closes.");
+        Rules.input(expiresAt.isAfter(Instant.now())&&closes!=null&&!expiresAt.isAfter(closes)
+                &&(!(terms.get("endsAt") instanceof Instant end)||!expiresAt.isAfter(end)),"Invitation must expire in the future and no later than recruitment closes.");
         db.update("UPDATE app.event_application_invites SET revoked_at=now() WHERE event_id=? AND revoked_at IS NULL",eventId);
         byte[] bytes=new byte[24]; random.nextBytes(bytes);
         String code=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
@@ -71,9 +72,9 @@ public class ApplicationInvitationService {
                 SELECT i.event_id FROM app.event_application_invites i
                 JOIN app.event_recruitments r ON r.event_id=i.event_id JOIN app.events e ON e.id=i.event_id
                 JOIN app.organizations o ON o.id=e.organization_id
-                WHERE i.token_hash=? AND i.revoked_at IS NULL AND i.expires_at>now()
-                  AND r.publication_status='PUBLISHED' AND r.closes_at>now()
-                  AND e.publication_status<>'ARCHIVED' AND o.organization_status='ACTIVE'
+                WHERE i.token_hash=? AND i.revoked_at IS NULL AND least(i.expires_at,r.closes_at)>clock_timestamp()
+                  AND r.publication_status='PUBLISHED' AND r.closes_at>clock_timestamp()
+                  AND e.publication_status<>'ARCHIVED' AND o.organization_status='ACTIVE' AND (e.ends_at is null or e.ends_at>clock_timestamp())
                 """,hash(code));
         if(invite==null)throw ApiException.notFound();
         return recruitments.invitationRecruitment(SqlStore.uuid(invite,"eventId"));

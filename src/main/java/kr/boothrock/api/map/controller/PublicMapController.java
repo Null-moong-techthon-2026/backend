@@ -14,9 +14,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Profile("local & !deploy")
+@Profile("(local | staging) & !deploy")
 @RequestMapping("/api/public/events/{eventId}/map")
-@Tag(name = "Public Map")
+@Tag(name = "방문객 지도 조회")
 public class PublicMapController {
     private final MapService maps;
 
@@ -25,7 +25,7 @@ public class PublicMapController {
     }
 
     @GetMapping
-    @Operation(summary = "Read a published map with public booths and facility pins")
+    @Operation(summary = "공개 지도·부스·편의시설 핀 조회")
     public ResponseEntity<Map<String, Object>> map(@PathVariable UUID eventId) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(maps.publicMap(eventId));
     }

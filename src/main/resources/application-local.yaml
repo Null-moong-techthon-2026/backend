@@ -16,5 +16,6 @@ springdoc:
     enabled: true
 boothrock:
   frontend:
+    additional-origins: ${FRONTEND_ADDITIONAL_ORIGINS:}
     origin: ${FRONTEND_ORIGIN:http://127.0.0.1:5173}
     invite-base-url: ${FRONTEND_INVITE_BASE_URL:http://127.0.0.1:5173/invite}

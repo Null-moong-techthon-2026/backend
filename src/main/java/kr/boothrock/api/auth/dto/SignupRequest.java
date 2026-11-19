@@ -13,7 +13,7 @@ public record SignupRequest(
         @NotBlank @Size(max = 100) String nickname,
         @NotBlank @Pattern(regexp = "[+]?[0-9]{8,15}") String phoneNumber,
         @NotBlank @Email @Size(max = 254) String email) {
-    public enum OnboardingType { ORGANIZER, OPERATOR }
+    public enum OnboardingType { ORGANIZER, OPERATOR, STAFF }
 
     @Override
     public String toString() {

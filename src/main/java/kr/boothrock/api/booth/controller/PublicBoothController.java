@@ -15,9 +15,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Profile("local & !deploy")
+@Profile("(local | staging) & !deploy")
 @RequestMapping("/api/public/events/{eventId}/booths")
-@Tag(name = "Public booths")
+@Tag(name = "방문객 부스 조회")
 public class PublicBoothController {
     private final BoothService booths;
 
@@ -26,13 +26,13 @@ public class PublicBoothController {
     }
 
     @GetMapping
-    @Operation(summary = "List visible booths of a published event")
+    @Operation(summary = "공개된 행사의 부스 목록 조회")
     public Map<String, Object> list(@PathVariable UUID eventId, @ParameterObject @ModelAttribute BoothQuery query) {
         return booths.publicList(eventId, query.filter());
     }
 
     @GetMapping("/{boothId}")
-    @Operation(summary = "Read a public booth's description, items, and published map placement")
+    @Operation(summary = "공개 부스 소개·메뉴·지도 위치 조회")
     public Map<String, Object> detail(@PathVariable UUID eventId, @PathVariable UUID boothId) {
         return booths.publicDetail(eventId, boothId);
     }

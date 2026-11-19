@@ -23,9 +23,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@Profile("local & !deploy")
+@Profile("(local | staging) & !deploy")
 @RequestMapping("/api")
-@Tag(name = "Media")
+@Tag(name = "이미지 파일")
 public class MediaController {
     private final MediaService media;
 
@@ -34,7 +34,8 @@ public class MediaController {
     }
 
     @PostMapping(value = "/events/{eventId}/media-assets", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload a PNG or JPEG for an event", description = "Maximum 10 MiB and 16 million pixels. Returns a permission-checked local content URL.")
+    @Operation(summary = "행사 이미지 업로드", description = "PNG·JPEG 이미지 파일을 업로드합니다. 최대 10 MiB·1,600만 화소까지 허용하며, 조회 권한을 확인하는 파일 주소를 반환합니다.")
+    @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.CREATED)
     public ResponseEntity<Map<String, Object>> upload(@PathVariable UUID eventId,
             @AuthenticationPrincipal AccountPrincipal principal,
             @RequestPart("file") @Parameter(schema = @Schema(type = "string", format = "binary")) MultipartFile file) {
@@ -42,8 +43,18 @@ public class MediaController {
                 .body(media.upload(eventId, principal.getAccountId(), file));
     }
 
+    @PostMapping(value = "/events/{eventId}/booths/{boothId}/media-assets", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "내 부스 사진 업로드", description = "관리자 또는 해당 부스 운영자가 업로드합니다. 반환 ID를 부스 사진 목록에 저장하면 공개 상태에 따라 노출됩니다.")
+    @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.CREATED)
+    public ResponseEntity<Map<String, Object>> uploadBooth(@PathVariable UUID eventId, @PathVariable UUID boothId,
+            @AuthenticationPrincipal AccountPrincipal principal,
+            @RequestPart("file") MultipartFile file) {
+        return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore())
+                .body(media.uploadBooth(eventId, boothId, principal.getAccountId(), file));
+    }
+
     @GetMapping("/media-assets/{assetId}/content")
-    @Operation(summary = "Read an image as its event manager or through a current public reference")
+    @Operation(summary = "행사 관리자·공개 화면의 이미지 조회")
     public ResponseEntity<byte[]> content(@PathVariable UUID assetId,
             @AuthenticationPrincipal AccountPrincipal principal) {
         var content = media.content(assetId, principal == null ? null : principal.getAccountId());

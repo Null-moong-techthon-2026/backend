@@ -3,6 +3,10 @@ package kr.boothrock.api.booth.service;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.HashSet;
+import kr.boothrock.api.booth.dto.BoothRequests.ReplacePhotos;
+import kr.boothrock.api.common.repository.SqlStore;
+import kr.boothrock.api.map.service.MediaService;
 import java.util.UUID;
 import kr.boothrock.api.booth.dto.BoothFilter;
 import kr.boothrock.api.booth.dto.BoothRequests.CreateBooth;
@@ -23,10 +27,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class BoothService {
     private final BoothRepository booths;
     private final EventAccess access;
+    private final MediaService media;
 
-    public BoothService(BoothRepository booths, EventAccess access) {
+    public BoothService(BoothRepository booths, EventAccess access, MediaService media) {
         this.booths = booths;
         this.access = access;
+        this.media = media;
     }
 
     @Transactional
@@ -80,6 +86,7 @@ public class BoothService {
     private Map<String, Object> detailResult(UUID eventId, UUID boothId, boolean publicOnly) {
         Map<String, Object> result = new LinkedHashMap<>(booths.detail(eventId, boothId, publicOnly));
         result.put("items", booths.items(boothId, publicOnly));
+        result.put("photos", booths.photos(boothId));
         result.put("mapPlacement", booths.placement(eventId, boothId));
         return result;
     }
@@ -92,6 +99,21 @@ public class BoothService {
         if (request.categoryCode() != null) Rules.category(request.categoryCode());
         if (request.visibilityStatus() != null) Rules.enumValue(request.visibilityStatus(), "HIDDEN", "PUBLIC", "ARCHIVED");
         booths.patch(boothId, request);
+        return detailResult(eventId, boothId, false);
+    }
+
+    @Transactional
+    public Map<String, Object> replacePhotos(UUID eventId, UUID actor, UUID boothId, ReplacePhotos request) {
+        Rules.revision(request.revision(), lockForWrite(eventId, boothId, actor));
+        Rules.input(new HashSet<>(request.mediaAssetIds()).size() == request.mediaAssetIds().size(),
+                "Photo IDs must be unique");
+        for (UUID assetId : request.mediaAssetIds()) {
+            Map<String, Object> asset = media.requireAsset(eventId, assetId);
+            UUID scopedBooth = SqlStore.uuid(asset, "eventBoothId");
+            if (!boothId.equals(scopedBooth)
+                    && !(scopedBooth == null && access.isManager(eventId, actor))) throw ApiException.notFound();
+        }
+        booths.replacePhotos(eventId, boothId, request.mediaAssetIds());
         return detailResult(eventId, boothId, false);
     }
 
@@ -139,6 +161,7 @@ public class BoothService {
     private Map<String, Object> lockForWrite(UUID eventId, UUID boothId, UUID actor) {
         access.requireBooth(eventId, boothId, actor);
         access.lockEvent(eventId);
+        access.requireEditableBooth(eventId,boothId);
         return access.requireBooth(eventId, boothId, actor);
     }
 

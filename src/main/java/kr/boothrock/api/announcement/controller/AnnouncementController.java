@@ -24,9 +24,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Profile("local & !deploy")
+@Profile("(local | staging) & !deploy")
 @RequestMapping("/api/events/{eventId}/announcements")
-@Tag(name = "Announcements", description = "Event announcements and audience-aware participant reading")
+@Tag(name = "공지사항", description = "행사 공지 작성·관리와 대상별 공지 조회")
 public class AnnouncementController {
     private final AnnouncementService announcements;
 
@@ -35,7 +35,7 @@ public class AnnouncementController {
     }
 
     @GetMapping
-    @Operation(summary = "List announcements for a participant or manager", description = "READ is the default. MANAGE requires manager access. Audience filters only narrow authorized results.")
+    @Operation(summary = "참여자·관리자 공지 목록 조회", description = "기본 조회 방식은 READ입니다. MANAGE는 행사 관리자만 사용할 수 있습니다. 대상 필터는 조회 권한이 있는 공지 안에서만 결과를 좁힙니다.")
     public Map<String, Object> list(@PathVariable UUID eventId,
             @AuthenticationPrincipal AccountPrincipal actor,
             @RequestParam(defaultValue = "READ") String view,
@@ -47,7 +47,7 @@ public class AnnouncementController {
     }
 
     @GetMapping("/{announcementId}")
-    @Operation(summary = "Read an announcement visible to the current participant")
+    @Operation(summary = "내가 볼 수 있는 공지 상세 조회")
     public Map<String, Object> detail(@PathVariable UUID eventId, @PathVariable UUID announcementId,
                                       @AuthenticationPrincipal AccountPrincipal actor) {
         return announcements.detail(eventId, announcementId, actor.getAccountId());
@@ -55,14 +55,14 @@ public class AnnouncementController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Create a draft or published announcement", description = "Managers only. The author and publication time are assigned by the server.")
+    @Operation(summary = "공지 임시 저장·게시", description = "행사 관리자만 사용할 수 있습니다. 작성자와 게시 시각은 서버가 지정합니다.")
     public Map<String, Object> create(@PathVariable UUID eventId,
             @AuthenticationPrincipal AccountPrincipal actor, @Valid @RequestBody CreateAnnouncementRequest request) {
         return announcements.create(eventId, actor.getAccountId(), request);
     }
 
     @PutMapping("/{announcementId}")
-    @Operation(summary = "Replace or publish an announcement using its current revision", description = "Managers only. Updates preserve the first publication time.")
+    @Operation(summary = "공지 수정·게시", description = "행사 관리자만 사용할 수 있습니다. 현재 revision을 보내야 하며 최초 게시 시각은 유지됩니다.")
     public Map<String, Object> update(@PathVariable UUID eventId, @PathVariable UUID announcementId,
             @AuthenticationPrincipal AccountPrincipal actor, @Valid @RequestBody UpdateAnnouncementRequest request) {
         return announcements.update(eventId, announcementId, actor.getAccountId(), request);
@@ -70,7 +70,7 @@ public class AnnouncementController {
 
     @DeleteMapping("/{announcementId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Delete an announcement using its current revision", description = "Managers only. Deleted announcements cannot be restored.")
+    @Operation(summary = "공지 삭제", description = "행사 관리자만 사용할 수 있습니다. 현재 revision을 보내야 하며 삭제한 공지는 복구할 수 없습니다.")
     public void delete(@PathVariable UUID eventId, @PathVariable UUID announcementId,
                        @AuthenticationPrincipal AccountPrincipal actor, @RequestParam long revision) {
         announcements.delete(eventId, announcementId, actor.getAccountId(), revision);

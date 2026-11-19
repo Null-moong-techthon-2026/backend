@@ -31,23 +31,29 @@ public class SecurityConfig {
             SecurityContextRepository contextRepository,
             CsrfTokenRepository csrfRepository,
             @Value("${springdoc.api-docs.enabled:false}") boolean docsEnabled) throws Exception {
-        boolean local = environment.acceptsProfiles(Profiles.of("local & !deploy"));
-        if (local) http.cors(Customizer.withDefaults());
+        boolean business = environment.acceptsProfiles(Profiles.of("(local | staging) & !deploy"));
+        boolean localTools = environment.acceptsProfiles(Profiles.of("local & !staging & !deploy"));
+        if (business) http.cors(Customizer.withDefaults());
         http.authorizeHttpRequests(authorize -> {
+            // Allow only internal error dispatch; direct requests to /error remain denied.
+            authorize.dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll();
             authorize.requestMatchers(HttpMethod.GET,
                     "/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness",
                     "/api/system/status").permitAll();
-            if (local) {
+            if (business) {
                 authorize.requestMatchers(HttpMethod.GET, "/api/auth/csrf",
-                        "/api/auth/login-id-availability", "/api/dev/auth-data").permitAll();
+                        "/api/auth/login-id-availability").permitAll();
                 authorize.requestMatchers(HttpMethod.POST, "/api/auth/login",
                         "/api/auth/sign-up").permitAll();
-                authorize.requestMatchers(HttpMethod.DELETE, "/api/dev/auth-data").permitAll();
                 authorize.requestMatchers(HttpMethod.GET, "/api/me").authenticated();
                 authorize.requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated();
                 authorize.requestMatchers(HttpMethod.GET, "/api/public/**", "/api/media-assets/*/content").permitAll();
                 authorize.requestMatchers(HttpMethod.POST, "/api/application-invitations/resolve").permitAll();
-                authorize.requestMatchers("/api/events/**", "/api/organizations/**", "/api/me/**").authenticated();
+                authorize.requestMatchers("/api/events/**", "/api/organizations/**", "/api/me/**", "/api/event-openings", "/api/admin/event-openings/**", "/api/admin/event-openings", "/api/admin/demo/reset", "/api/staff-invitations/**").authenticated();
+            }
+            if (localTools) {
+                authorize.requestMatchers(HttpMethod.GET, "/api/dev/auth-data").permitAll();
+                authorize.requestMatchers(HttpMethod.DELETE, "/api/dev/auth-data").permitAll();
                 authorize.requestMatchers(HttpMethod.POST, "/api/dev/organizations").authenticated();
             }
             if (docsEnabled) {
@@ -55,7 +61,6 @@ public class SecurityConfig {
                         "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml",
                         "/swagger-ui.html", "/swagger-ui/**").permitAll();
             }
-            // Open business routes only after their authentication and ownership checks exist.
             authorize.anyRequest().denyAll();
         });
         http.csrf(csrf -> csrf.csrfTokenRepository(csrfRepository));

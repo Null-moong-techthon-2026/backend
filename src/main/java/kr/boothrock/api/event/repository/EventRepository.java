@@ -20,10 +20,11 @@ public class EventRepository {
     public Map<String,Object> recruitment(UUID eventId) {
         Map<String,Object> result = db.one("""
                 SELECT event_id, introduction, publication_status, closes_at, target_booth_count,
-                       allowed_category_codes, participation_fee_krw, fee_note, revision
+                       allowed_category_codes, participation_fee_krw, fee_note, contact_phone, revision
                 FROM app.event_recruitments WHERE event_id=?
                 """, eventId);
         result.put("documentRequirements", documents(eventId));
+        result.put("additionalQuestions", questions(eventId));
         return result;
     }
     public List<Map<String,Object>> documents(UUID eventId) {
@@ -31,6 +32,9 @@ public class EventRepository {
                 SELECT id,name,is_required,applicable_category_codes,sort_order
                 FROM app.recruitment_document_requirements WHERE event_id=? ORDER BY sort_order,id
                 """, eventId);
+    }
+    public List<Map<String,Object>> questions(UUID eventId) {
+        return db.list("SELECT id,question,is_required,sort_order FROM app.recruitment_questions WHERE event_id=? ORDER BY sort_order,id",eventId);
     }
     public void audit(UUID eventId, UUID actor, String action, String targetType, UUID targetId) {
         db.update("""

@@ -26,34 +26,18 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1'
+    implementation 'software.amazon.awssdk:s3:2.57.2'
+    implementation 'org.apache.pdfbox:pdfbox:3.0.7'
     runtimeOnly 'org.postgresql:postgresql'
 
-    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
-    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
-    testImplementation 'org.testcontainers:testcontainers-postgresql'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-tasks.named('test') {
-    useJUnitPlatform {
-        excludeTags 'integration'
+// This distribution contains runtime sources only. Local QA sources are kept separately.
+sourceSets {
+    test {
+        java.setSrcDirs([])
+        resources.setSrcDirs([])
     }
-}
-
-tasks.register('integrationTest', Test) {
-    description = 'Runs PostgreSQL integration tests. Requires Docker.'
-    group = 'verification'
-    testClassesDirs = sourceSets.test.output.classesDirs
-    classpath = sourceSets.test.runtimeClasspath
-    useJUnitPlatform {
-        includeTags 'integration'
-    }
-    shouldRunAfter tasks.named('test')
-}
-
-tasks.named('check') {
-    dependsOn tasks.named('integrationTest')
 }
 
 tasks.named('bootJar') {

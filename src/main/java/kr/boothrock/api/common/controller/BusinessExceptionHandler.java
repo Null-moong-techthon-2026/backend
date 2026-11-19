@@ -13,9 +13,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
-@RestControllerAdvice(basePackages = {"kr.boothrock.api.event", "kr.boothrock.api.booth", "kr.boothrock.api.map", "kr.boothrock.api.announcement"})
+@RestControllerAdvice(basePackages = {"kr.boothrock.api.event", "kr.boothrock.api.booth", "kr.boothrock.api.map", "kr.boothrock.api.announcement", "kr.boothrock.api.staff", "kr.boothrock.api.demo"})
 public class BusinessExceptionHandler {
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<?> business(ApiException error) {
@@ -32,8 +31,6 @@ public class BusinessExceptionHandler {
     public ResponseEntity<?> invalidInput(Exception ignored) {
         return error(400, "VALIDATION_ERROR", "Check the input.", List.of());
     }
-    @ExceptionHandler(MaxUploadSizeExceededException.class)
-    public ResponseEntity<?> tooLarge() { return error(413, "FILE_TOO_LARGE", "Maximum image size is 10 MiB.", List.of()); }
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<?> constraint(DataIntegrityViolationException ignored) {
         return error(409, "INVALID_STATE", "The requested change conflicts with existing data.", List.of());

@@ -27,9 +27,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Profile("local & !deploy")
+@Profile("(local | staging) & !deploy")
 @RequestMapping("/api/events/{eventId}")
-@Tag(name = "Map Editor")
+@Tag(name = "지도 제작")
 public class MapController {
     private final MapService maps;
 
@@ -38,7 +38,7 @@ public class MapController {
     }
 
     @GetMapping("/map-editor")
-    @Operation(summary = "Read the published map summary and editable draft")
+    @Operation(summary = "공개 지도 요약·편집 중인 지도 조회")
     public Map<String, Object> editor(@PathVariable UUID eventId,
             @AuthenticationPrincipal AccountPrincipal principal) {
         return maps.editor(eventId, principal.getAccountId());
@@ -46,14 +46,14 @@ public class MapController {
 
     @PostMapping("/floor-plans")
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Create a draft from an uploaded image or the event's published map")
+    @Operation(summary = "업로드 이미지·기존 공개 지도로 편집 초안 생성")
     public Map<String, Object> create(@PathVariable UUID eventId,
             @AuthenticationPrincipal AccountPrincipal principal, @Valid @RequestBody CreateFloorPlanRequest request) {
         return maps.create(eventId, principal.getAccountId(), request);
     }
 
     @PutMapping("/floor-plans/{floorPlanId}")
-    @Operation(summary = "Replace the draft's complete pin set", description = "At most 500 pins; omitted pins are deleted.")
+    @Operation(summary = "편집 중인 지도의 핀 전체 저장", description = "핀은 최대 500개까지 저장할 수 있습니다. 기존 핀 중 요청에 없는 핀은 삭제됩니다.")
     public Map<String, Object> replacePins(@PathVariable UUID eventId, @PathVariable UUID floorPlanId,
             @AuthenticationPrincipal AccountPrincipal principal, @Valid @RequestBody ReplaceMapPinsRequest request) {
         return maps.replacePins(eventId, floorPlanId, principal.getAccountId(), request);
@@ -61,7 +61,7 @@ public class MapController {
 
     @DeleteMapping("/floor-plans/{floorPlanId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Delete a draft and its pins")
+    @Operation(summary = "편집 중인 지도·핀 삭제")
     public void delete(@PathVariable UUID eventId, @PathVariable UUID floorPlanId,
             @AuthenticationPrincipal AccountPrincipal principal,
             @RequestParam @PositiveOrZero @Parameter(example = "0") long revision) {
@@ -69,7 +69,7 @@ public class MapController {
     }
 
     @PostMapping("/floor-plans/{floorPlanId}/publication")
-    @Operation(summary = "Publish the draft and archive the previous published map")
+    @Operation(summary = "지도 게시·기존 공개 지도 보관")
     public Map<String, Object> publish(@PathVariable UUID eventId, @PathVariable UUID floorPlanId,
             @AuthenticationPrincipal AccountPrincipal principal, @Valid @RequestBody PublishMapRequest request) {
         return maps.publish(eventId, floorPlanId, principal.getAccountId(), request.revision());

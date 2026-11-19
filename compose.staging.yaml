@@ -1,0 +1,44 @@
+name: boothluck-staging
+services:
+  api:
+    image: ${APP_IMAGE:-boothluck-api:staging}
+    pull_policy: never
+    env_file:
+      - path: ${STAGING_ENV_FILE:-.env.staging}
+        format: raw
+    environment:
+      SPRING_PROFILES_ACTIVE: staging
+      SERVER_PORT: 8080
+      DB_POOL_SIZE: 5
+      MEDIA_DIRECTORY: /var/lib/boothrock/media
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx512m -XX:+ExitOnOutOfMemoryError
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8080"
+    volumes:
+      - type: bind
+        source: ${RDS_CA_FILE:-/home/ubuntu/global-bundle.pem}
+        target: /run/rds-ca/global-bundle.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - media-data:/var/lib/boothrock/media
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "--max-time", "3", "http://127.0.0.1:8080/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+    restart: unless-stopped
+    stop_grace_period: 35s
+    mem_limit: 1g
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  media-data:

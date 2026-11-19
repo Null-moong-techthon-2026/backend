@@ -8,3 +8,8 @@ build
 .idea
 *.log
 erd-lab/
+
+# Runtime-only image context.
+src/test/
+scripts/
+docs/

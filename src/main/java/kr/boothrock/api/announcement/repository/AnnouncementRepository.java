@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 @Repository
-@Profile("local & !deploy")
+@Profile("(local | staging) & !deploy")
 public class AnnouncementRepository {
     public record Readers(boolean manager, boolean staff, boolean operator) {}
 
@@ -53,22 +53,40 @@ public class AnnouncementRepository {
 
     public Map<String, Object> page(UUID eventId, Readers readers, String query, String audience,
                                     int page, int size) {
-        return sql.page("SELECT " + SUMMARY + VISIBLE + FILTERS + ORDER,
+        var result=sql.page("SELECT " + SUMMARY + VISIBLE + FILTERS + ORDER,
                 "SELECT count(*) " + VISIBLE + FILTERS, page, size,
                 eventId, readers.manager(), readers.manager(), readers.staff(), readers.operator(),
                 query, audience, audience);
+        for(Object item:(List<?>)result.get("content")) {
+            @SuppressWarnings("unchecked") var row=(Map<String,Object>)item;
+            row.put("attachments",attachments(eventId,(UUID)row.get("id")));
+        }
+        return result;
     }
 
     public Map<String, Object> detail(UUID eventId, UUID announcementId, Readers readers) {
-        return sql.one("SELECT " + DETAIL + VISIBLE + " AND a.id = ?",
+        var result=sql.one("SELECT " + DETAIL + VISIBLE + " AND a.id = ?",
                 eventId, readers.manager(), readers.manager(), readers.staff(), readers.operator(), announcementId);
+        result.put("attachments",attachments(eventId,announcementId));
+        return result;
     }
 
     public List<Map<String, Object>> recent(UUID eventId, Readers readers) {
-        return sql.list("SELECT " + SUMMARY + VISIBLE + ORDER + " LIMIT 3",
+        var result=sql.list("SELECT " + SUMMARY + VISIBLE + ORDER + " LIMIT 3",
                 eventId, false, readers.manager(), readers.staff(), readers.operator());
+        for(var row:result)row.put("attachments",attachments(eventId,(UUID)row.get("id")));
+        return result;
     }
 
+    public List<Map<String,Object>> attachments(UUID event,UUID announcement) {
+        var files=sql.list("""
+            select f.id as attachment_id,f.file_name,f.mime_type,f.size_bytes,f.uploaded_at
+            from app.announcement_attachment_links l join app.announcement_attachments f on f.id=l.attachment_id and f.event_id=l.event_id
+            where l.event_id=? and l.announcement_id=? order by l.sort_order
+            """,event,announcement);
+        for(var f:files)f.put("readUrl",kr.boothrock.api.announcement.file.AnnouncementFileService.readUrl(event,(UUID)f.get("attachmentId")));
+        return files;
+    }
     public void requireImage(UUID eventId, UUID imageAssetId) {
         if (imageAssetId != null) {
             sql.one("SELECT id FROM app.media_assets WHERE event_id = ? AND id = ?", eventId, imageAssetId);

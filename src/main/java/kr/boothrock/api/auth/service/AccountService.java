@@ -43,8 +43,9 @@ public class AccountService {
             throw new AuthInputException("LOGIN_ID_TAKEN", "Login ID is already used.");
         }
 
-        AccountEntity account = accounts.saveAndFlush(new AccountEntity(
-                request.nickname().trim(), request.phoneNumber(), request.email().trim()));
+        AccountEntity account = new AccountEntity(request.nickname().trim(), request.phoneNumber(), request.email().trim());
+        account.setOnboardingType(request.onboardingType().name());
+        accounts.saveAndFlush(account);
         credentials.saveAndFlush(new LocalCredentialEntity(account.getId(), request.loginId(),
                 encoder.encode(request.password())));
 
@@ -57,6 +58,6 @@ public class AccountService {
                 .filter(value -> "ACTIVE".equals(value.getAccountStatus()))
                 .orElseThrow(() -> new AuthInputException("ACCOUNT_UNAVAILABLE", "Account is unavailable."));
         return new AccountResponse(account.getId(), account.getNickname(),
-                account.getPhoneNumber(), account.getEmail());
+                account.getPhoneNumber(), account.getEmail(), "ADMIN".equals(account.getPlatformRole()) ? "ADMIN" : account.getOnboardingType());
     }
 }

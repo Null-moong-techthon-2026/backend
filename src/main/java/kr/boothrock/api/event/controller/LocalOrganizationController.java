@@ -15,7 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@Profile("local & !deploy")
+@Profile("local & !staging & !deploy")
 @Tag(name="로컬 테스트")
 public class LocalOrganizationController {
     private final EventService events;

@@ -1,0 +1,15 @@
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+boothrock:
+  frontend:
+    additional-origins: ${FRONTEND_ADDITIONAL_ORIGINS:}
+    origin: ${FRONTEND_ORIGIN}
+    invite-base-url: ${FRONTEND_INVITE_BASE_URL}
+    staff-invite-base-url: ${FRONTEND_STAFF_INVITE_BASE_URL:${boothrock.frontend.origin}/invite/staff}
+  media:
+    directory: ${MEDIA_DIRECTORY}
+  demo:
+    reset-enabled: ${DEMO_RESET_ENABLED:false}

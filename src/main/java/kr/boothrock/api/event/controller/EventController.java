@@ -18,7 +18,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@Profile("local & !deploy")
+@Profile("(local | staging) & !deploy")
 @RequestMapping("/api")
 @Tag(name="행사",description="행사 선택, 공통 네비게이션 및 행사 정보")
 public class EventController {
@@ -47,12 +47,12 @@ public class EventController {
     public Map<String,Object> dashboard(@PathVariable UUID eventId,@AuthenticationPrincipal AccountPrincipal actor) {
         return dashboard.get(eventId,actor.getAccountId());
     }
-    @PatchMapping("/events/{eventId}") @Operation(summary="행사 정보 수정",description="revision을 포함합니다. null 또는 생략한 필드는 유지합니다.")
+    @PatchMapping("/events/{eventId}") @Operation(summary="행사 정보 수정",description="revision 필수. 생략한 필드는 유지하며 posterAssetId:null만 포스터를 해제합니다. 행사 endsAt을 기존 모집 closesAt보다 앞당길 수 없으며 먼저 모집 마감을 줄여야 합니다.")
     @Parameter(name="X-CSRF-TOKEN",in=ParameterIn.HEADER,required=true)
     public Map<String,Object> update(@PathVariable UUID eventId,@AuthenticationPrincipal AccountPrincipal actor,@Valid @RequestBody EventRequests.Update request) {
         return events.update(eventId,actor.getAccountId(),request);
     }
-    @GetMapping("/public/events") @Operation(summary="공개 모집 행사 목록")
+    @GetMapping("/public/events") @Operation(summary="공개 모집 행사 목록",description="recruitmentStatus=OPEN은 모집 마감 전이며 행사가 종료되지 않은 항목만 반환합니다. CLOSED는 모집 마감 또는 행사 종료 항목입니다. 필터 생략 시 종료 항목도 남기되 recruitmentStatus는 CLOSED입니다.")
     public Map<String,Object> publicEvents(@RequestParam(required=false) String recruitmentStatus,@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size) {
         return events.publicEvents(recruitmentStatus,page,size);
     }

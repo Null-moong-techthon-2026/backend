@@ -4,8 +4,29 @@ build/
 .env
 .env.*
 !.env.example
+!.env.staging.example
+!.env.proxy.example
 .idea/
 *.iml
 .DS_Store
 *.log
 .local/
+
+# Local staging SSH key; never include credentials in source sharing.
+/boothluck-staging-key.pem
+
+# Generated caches, credentials and backups.
+__pycache__/
+*.py[cod]
+*.pem
+*.key
+*.p12
+*.pfx
+*.dump
+*.sql.gz
+
+# Documentation stays in the local workspace; publish README only.
+/docs/
+# Local validation, demo data and operational helper scripts are not distributed.
+/src/test/
+/scripts/

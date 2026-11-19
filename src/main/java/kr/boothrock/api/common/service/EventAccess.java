@@ -14,6 +14,10 @@ public class EventAccess {
         if (db.count("SELECT count(*) FROM app.accounts WHERE id=? AND account_status='ACTIVE'", accountId) == 0)
             throw ApiException.forbidden();
     }
+    public void requirePlatformAdmin(UUID actor) {
+        requireAccount(actor);
+        if(db.count("select count(*) from app.accounts where id=? and platform_role='ADMIN'",actor)!=1)throw ApiException.forbidden();
+    }
     public void requireOrganizationOwner(UUID organizationId, UUID accountId) {
         requireAccount(accountId);
         if (db.count("""
@@ -35,7 +39,14 @@ public class EventAccess {
         return row == null ? null : (String) row.get("role");
     }
     public boolean isManager(UUID eventId, UUID accountId) { return "MANAGER".equals(organizerRole(eventId, accountId)); }
-    public boolean isStaff(UUID eventId, UUID accountId) { return organizerRole(eventId, accountId) != null; }
+    public boolean isStaff(UUID eventId, UUID accountId) {
+        return organizerRole(eventId, accountId) != null || accountId != null && db.count("""
+            select count(*) from app.staff_members m join app.accounts a on a.id=m.account_id
+            join app.events e on e.id=m.event_id join app.organizations o on o.id=e.organization_id
+            where m.event_id=? and m.account_id=? and m.status not in ('PENDING','REJECTED')
+            and a.account_status='ACTIVE' and o.organization_status='ACTIVE' and e.publication_status<>'ARCHIVED'
+            """,eventId,accountId)>0;
+    }
     public boolean isOperator(UUID eventId, UUID accountId) {
         return accountId != null && db.count("""
                 SELECT count(*) FROM app.booth_memberships bm JOIN app.event_booths b ON b.id=bm.event_booth_id
@@ -73,6 +84,10 @@ public class EventAccess {
                 SELECT count(*) FROM app.booth_memberships WHERE event_booth_id=? AND account_id=? AND membership_status='ACTIVE'
                 """, boothId, accountId) > 0)) throw ApiException.notFound();
         return booth;
+    }
+    public void requireEditableBooth(UUID event,UUID booth) {
+        Rules.require(db.count("select count(*) from app.event_booths b join app.booth_applications a on a.id=b.application_id where b.id=? and b.event_id=? and a.review_status='CANCELLED'",booth,event)==0,
+            "INVALID_STATE","A cancelled booth cannot be edited or republished");
     }
     public void lockEvent(UUID eventId) { db.one("SELECT id FROM app.events WHERE id=? FOR UPDATE", eventId); }
 }

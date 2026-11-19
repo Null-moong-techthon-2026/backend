@@ -67,3 +67,10 @@ springdoc:
   swagger-ui:
     enabled: false
     persist-authorization: false
+
+boothrock:
+  media:
+    provider: ${MEDIA_PROVIDER:local}
+    s3:
+      bucket: ${MEDIA_S3_BUCKET:}
+      region: ${MEDIA_S3_REGION:}

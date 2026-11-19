@@ -27,6 +27,14 @@ public class AccountEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "onboarding_type", nullable = false, length = 20)
+    private String onboardingType = "OPERATOR";
+
+    public String getOnboardingType() { return onboardingType; }
+    public void setOnboardingType(String value) { this.onboardingType = value; }
+    @Column(name="platform_role",nullable=false)
+    private String platformRole="USER";
+    public String getPlatformRole() { return platformRole; }
     protected AccountEntity() {}
 
     public AccountEntity(String nickname, String phoneNumber, String email) {

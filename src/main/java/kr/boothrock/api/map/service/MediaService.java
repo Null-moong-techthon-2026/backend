@@ -4,11 +4,6 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.channels.Channels;
-import java.nio.file.Files;
-import java.nio.file.LinkOption;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
@@ -21,9 +16,9 @@ import kr.boothrock.api.common.service.ApiException;
 import kr.boothrock.api.common.service.EventAccess;
 import kr.boothrock.api.common.service.Rules;
 import kr.boothrock.api.map.repository.MediaRepository;
+import kr.boothrock.api.map.storage.MediaStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -37,23 +32,35 @@ public class MediaService {
     private static final long MAX_PIXELS = 16_000_000L;
     private static final int MAX_DIMENSION = 16_000;
     private static final byte[] PNG_MAGIC = {(byte) 137, 80, 78, 71, 13, 10, 26, 10};
-    private static final Pattern LOCAL_KEY = Pattern.compile(
+    private static final Pattern IMAGE_KEY = Pattern.compile(
             "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(png|jpg)");
     private final MediaRepository media;
     private final EventAccess access;
-    private final Path directory;
+    private final MediaStorage storage;
 
     public MediaService(MediaRepository media, EventAccess access,
-            @Value("${boothrock.media.directory:.local/media}") String directory) {
+            MediaStorage storage) {
         this.media = media;
         this.access = access;
-        this.directory = Path.of(directory).toAbsolutePath().normalize();
+        this.storage = storage;
     }
 
     @Transactional
     public Map<String, Object> upload(UUID eventId, UUID accountId, MultipartFile file) {
         access.lockEvent(eventId);
         access.requireManager(eventId, accountId);
+        return store(eventId, accountId, null, file);
+    }
+
+    @Transactional
+    public Map<String, Object> uploadBooth(UUID eventId, UUID boothId, UUID accountId, MultipartFile file) {
+        access.lockEvent(eventId);
+        access.requireBooth(eventId, boothId, accountId);
+        access.requireEditableBooth(eventId,boothId);
+        return store(eventId, accountId, boothId, file);
+    }
+
+    private Map<String, Object> store(UUID eventId, UUID accountId, UUID boothId, MultipartFile file) {
         if (file.getSize() > MAX_BYTES) throw tooLarge();
         Rules.input(!file.isEmpty(), "An image file is required.");
         byte[] bytes;
@@ -66,15 +73,25 @@ public class MediaService {
         ImageInfo info = validateImage(bytes, file.getContentType());
         UUID id = UUID.randomUUID();
         String key = id + (info.mimeType().equals("image/png") ? ".png" : ".jpg");
-        writeFile(key, bytes);
-        media.insert(id, eventId, accountId, key, info.mimeType(), bytes.length, info.width(), info.height());
+        String bucket = storage.writeBucket();
+        storage.put(key, info.mimeType(), bytes);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_ROLLED_BACK) {
+                    try { storage.delete(bucket, key); }
+                    catch (RuntimeException exception) { log.warn("Unable to remove rolled-back media asset {}", id); }
+                }
+            }
+        });
+        media.insert(id, eventId, accountId, boothId, bucket, key, info.mimeType(), bytes.length, info.width(), info.height());
         return description(media.asset(eventId, id));
     }
 
     @Transactional(readOnly = true)
     public Map<String, Object> requireAsset(UUID eventId, UUID assetId) {
         Map<String, Object> asset = media.asset(eventId, assetId);
-        checkedPath(asset);
+        checkAsset(asset);
         return asset;
     }
 
@@ -95,35 +112,34 @@ public class MediaService {
         boolean manager = accountId != null && access.isManager(eventId, accountId);
         boolean internalNotice = accountId != null && media.hasInternalAnnouncementReference(assetId, eventId,
                 access.isStaff(eventId, accountId), access.isOperator(eventId, accountId));
-        if (!manager && !internalNotice && !media.hasPublicReference(assetId)) throw ApiException.notFound();
-        Path path = checkedPath(asset);
-        long expected = ((Number) asset.get("sizeBytes")).longValue();
-        if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) throw ApiException.notFound();
-        try (var channel = Files.newByteChannel(path, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS);
-                InputStream input = Channels.newInputStream(channel)) {
-            if (channel.size() != expected) throw ApiException.notFound();
-            byte[] bytes = input.readNBytes(MAX_BYTES + 1);
-            if (bytes.length != expected) throw ApiException.notFound();
-            return new MediaContent((String) asset.get("mimeType"), bytes);
-        } catch (IOException exception) {
-            throw ApiException.notFound();
+        boolean boothOwner = false;
+        UUID boothId = SqlStore.uuid(asset, "eventBoothId");
+        if (accountId != null && boothId != null) {
+            try { access.requireBooth(eventId, boothId, accountId); boothOwner = true; }
+            catch (ApiException ignored) { /* Public references are checked independently below. */ }
         }
+        if (!manager && !boothOwner && !internalNotice && !media.hasPublicReference(assetId)) throw ApiException.notFound();
+        checkAsset(asset);
+        return new MediaContent((String) asset.get("mimeType"), storage.read((String) asset.get("bucket"),
+                (String) asset.get("objectKey"), ((Number) asset.get("sizeBytes")).longValue()));
     }
 
-    private Path checkedPath(Map<String, Object> asset) {
+    private void checkAsset(Map<String, Object> asset) {
         String key = (String) asset.get("objectKey");
         String mime = (String) asset.get("mimeType");
         long size = ((Number) asset.get("sizeBytes")).longValue();
         int width = ((Number) asset.get("widthPx")).intValue();
         int height = ((Number) asset.get("heightPx")).intValue();
-        if (!"local".equals(asset.get("bucket")) || key == null || !LOCAL_KEY.matcher(key).matches()
+        if (key == null || !IMAGE_KEY.matcher(key).matches()
                 || !("image/png".equals(mime) && key.endsWith(".png")
                     || "image/jpeg".equals(mime) && key.endsWith(".jpg"))
                 || size <= 0 || size > MAX_BYTES || !validDimensions(width, height)) {
             throw ApiException.notFound();
         }
-        return directory.resolve(key);
+        storage.validate((String) asset.get("bucket"), key);
     }
+
+    public static void validateUploadedImage(byte[] bytes, String declaredMime) { validateImage(bytes,declaredMime); }
 
     private static ImageInfo validateImage(byte[] bytes, String declaredMime) {
         boolean png = bytes.length >= PNG_MAGIC.length
@@ -160,35 +176,6 @@ public class MediaService {
     private static boolean validDimensions(int width, int height) {
         return width > 0 && height > 0 && width <= MAX_DIMENSION && height <= MAX_DIMENSION
                 && (long) width * height <= MAX_PIXELS;
-    }
-
-    private void writeFile(String key, byte[] bytes) {
-        Path path = directory.resolve(key);
-        boolean created = false;
-        try {
-            Files.createDirectories(directory);
-            try (var output = Files.newOutputStream(path, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
-                created = true;
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                    @Override
-                    public void afterCompletion(int status) {
-                        if (status != STATUS_COMMITTED) deleteFile(path);
-                    }
-                });
-                output.write(bytes);
-            }
-        } catch (IOException exception) {
-            if (created) deleteFile(path);
-            throw new ApiException(500, "MEDIA_STORAGE_ERROR", "Unable to store the image.");
-        }
-    }
-
-    private void deleteFile(Path path) {
-        try {
-            Files.deleteIfExists(path);
-        } catch (IOException exception) {
-            log.warn("Unable to remove rolled-back media file {}", path.getFileName(), exception);
-        }
     }
 
     private static ApiException unsupported() {

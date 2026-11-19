@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Profile("local & !deploy")
+@Profile("(local | staging) & !deploy")
 @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
 public class DashboardService {
     private final EventAccess access;

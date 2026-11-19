@@ -13,9 +13,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Profile("local & !deploy")
+@Profile("(local | staging) & !deploy")
 @RequestMapping("/api/public/events/{eventId}/announcements")
-@Tag(name = "Public announcements", description = "Published PUBLIC announcements of published events")
+@Tag(name = "방문객 공지사항", description = "공개된 행사의 일반 방문객 대상 게시 공지")
 public class PublicAnnouncementController {
     private final AnnouncementService announcements;
 
@@ -24,7 +24,7 @@ public class PublicAnnouncementController {
     }
 
     @GetMapping
-    @Operation(summary = "List published public announcements", description = "Only published events and PUBLIC-audience announcements are visible, including for signed-in managers.")
+    @Operation(summary = "방문객 공지 목록 조회", description = "공개된 행사에 게시된 PUBLIC 대상 공지만 조회합니다. 로그인한 관리자도 이 API에서는 같은 공개 범위만 볼 수 있습니다.")
     public Map<String, Object> list(@PathVariable UUID eventId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -34,7 +34,7 @@ public class PublicAnnouncementController {
     }
 
     @GetMapping("/{announcementId}")
-    @Operation(summary = "Read a published public announcement")
+    @Operation(summary = "방문객 공지 상세 조회")
     public Map<String, Object> detail(@PathVariable UUID eventId, @PathVariable UUID announcementId) {
         return announcements.publicDetail(eventId, announcementId);
     }

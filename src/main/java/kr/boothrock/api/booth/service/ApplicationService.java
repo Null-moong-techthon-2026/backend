@@ -51,7 +51,8 @@ public class ApplicationService {
         }
         Rules.require(!"ARCHIVED".equals(recruitment.get("eventPublicationStatus"))
                 && "PUBLISHED".equals(recruitment.get("publicationStatus"))
-                && recruitment.get("closesAt") instanceof Instant closes && closes.isAfter(Instant.now()),
+                && recruitment.get("closesAt") instanceof Instant closes && closes.isAfter(Instant.now())
+                && (!(recruitment.get("endsAt") instanceof Instant end)||end.isAfter(Instant.now())),
                 "RECRUITMENT_CLOSED", "Recruitment is not open");
         Map<String, Object> profile = profiles.owned(request.boothProfileId(), actor, true);
         Rules.input(((List<?>) recruitment.get("allowedCategoryCodes")).contains(profile.get("categoryCode")),
@@ -79,7 +80,7 @@ public class ApplicationService {
         Rules.page(page, size);
         Rules.like(q);
         if (category != null) Rules.category(category);
-        if (status != null) Rules.enumValue(status, "PENDING", "APPROVED", "REJECTED");
+        if (status != null) Rules.enumValue(status, "PENDING", "APPROVED", "REJECTED", "CANCELLED");
         Rules.enumValue(sort, "submittedAt,asc", "submittedAt,desc");
         return applications.list(eventId, page, size, q, category, status, sort);
     }
@@ -105,6 +106,9 @@ public class ApplicationService {
                 "applicant", Rules.result("name", row.get("contactNameSnapshot"), "phoneNumber", row.get("contactPhoneSnapshot"),
                         "email", row.get("contactEmailSnapshot")),
                 "documents", applications.documents(eventId, id, manager), "rejectionReason", row.get("rejectionReason"),
+                "cancelledAt",row.get("cancelledAt"),"cancelledBy",row.get("cancelledBy"),"cancelReason",row.get("cancelReason"),
+                "affiliation",row.get("affiliation"),"bankName",row.get("bankName"),"accountNumber",row.get("accountNumber"),"accountHolder",row.get("accountHolder"),
+                "saleItems",row.get("saleItems"),"requiredFacilities",row.get("requiredFacilities"),"additionalAnswers",ApplicationRepository.answers(row),
                 "reviewedAt", row.get("reviewedAt"), "eventBoothId", booth == null ? null : booth.get("eventBoothId"),
                 "boothCode", booth == null ? null : booth.get("boothCode"));
         if (manager) result.put("reviewNote", row.get("reviewNote"));
@@ -166,6 +170,16 @@ public class ApplicationService {
         return Rules.result("applicationId", application.get("applicationId"), "reviewStatus", application.get("reviewStatus"),
                 "eventBoothId", booth == null ? null : booth.get("eventBoothId"),
                 "boothCode", booth == null ? null : booth.get("boothCode"), "revision", revision);
+    }
+
+    @Transactional
+    public Map<String,Object> cancel(UUID eventId,UUID actor,UUID id,kr.boothrock.api.booth.dto.BoothRequests.Cancellation request) {
+        lockForReview(eventId,actor);
+        var app=applications.application(eventId,id,true);
+        Rules.require("APPROVED".equals(app.get("reviewStatus")),"INVALID_STATE","Only approved applications can be cancelled");
+        Rules.revision(request.revision(),app);
+        applications.cancel(eventId,id,actor,request.cancelReason());
+        return details(applications.application(eventId,id,false),true);
     }
 
     private void lockForReview(UUID eventId, UUID actor) {

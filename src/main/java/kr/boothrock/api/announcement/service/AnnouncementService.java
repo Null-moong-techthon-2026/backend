@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Profile("local & !deploy")
+@Profile("(local | staging) & !deploy")
 @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
 public class AnnouncementService {
     private static final Readers MANAGER = new Readers(true, false, false);
@@ -26,8 +26,10 @@ public class AnnouncementService {
 
     private final AnnouncementRepository announcements;
     private final EventAccess access;
+    private final kr.boothrock.api.announcement.file.AnnouncementFileService files;
 
-    public AnnouncementService(AnnouncementRepository announcements, EventAccess access) {
+    public AnnouncementService(AnnouncementRepository announcements, EventAccess access, kr.boothrock.api.announcement.file.AnnouncementFileService files) {
+        this.files=files;
         this.announcements = announcements;
         this.access = access;
     }
@@ -70,10 +72,12 @@ public class AnnouncementService {
         Map<String, Object> event = access.requireManager(eventId, actor);
         List<String> audiences = validate(eventId, request.title(), request.body(), request.imageAssetId(),
                 request.audiences(), request.publicationStatus());
+        files.validate(eventId,request.attachmentIds());
         UUID id = UUID.randomUUID();
         announcements.create(id, eventId, actor, Rules.text(request.title()), Rules.text(request.body()),
                 request.imageAssetId(), Boolean.TRUE.equals(request.isUrgent()), request.publicationStatus(),
                 publishedAt(request.publicationStatus()));
+        files.link(eventId,id,request.attachmentIds());
         announcements.replaceAudiences(id, audiences);
         announcements.audit(eventId, SqlStore.uuid(event, "organizationId"), actor, id, "ANNOUNCEMENT_CREATED");
         return announcements.detail(eventId, id, MANAGER);
@@ -89,6 +93,7 @@ public class AnnouncementService {
         announcements.update(eventId, id, Rules.text(request.title()), Rules.text(request.body()),
                 request.imageAssetId(), Boolean.TRUE.equals(request.isUrgent()), request.publicationStatus(),
                 publishedAt(request.publicationStatus()));
+        files.link(eventId,id,request.attachmentIds());
         announcements.replaceAudiences(id, audiences);
         announcements.audit(eventId, SqlStore.uuid(event, "organizationId"), actor, id, "ANNOUNCEMENT_UPDATED");
         return announcements.detail(eventId, id, MANAGER);

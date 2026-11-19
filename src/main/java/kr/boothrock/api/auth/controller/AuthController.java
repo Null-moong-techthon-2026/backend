@@ -32,7 +32,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
-@Profile("local & !deploy")
+@Profile("(local | staging) & !deploy")
 @RequestMapping("/api")
 @Tag(name = "인증")
 public class AuthController {
@@ -45,7 +45,7 @@ public class AuthController {
     }
 
     @GetMapping("/auth/csrf")
-    @Operation(summary = "CSRF 토큰 조회", description = "POST/DELETE 요청의 X-CSRF-TOKEN 입력란에 반환된 token을 넣으세요. 로그인 이후에는 다시 조회합니다.")
+    @Operation(summary = "CSRF 토큰 조회", description = "POST·PUT·PATCH·DELETE 요청의 X-CSRF-TOKEN 입력란에 반환된 token을 넣습니다. 로그인 이후에는 다시 조회합니다.")
     public CsrfResponse csrf(CsrfToken token) {
         return new CsrfResponse(token.getHeaderName(), token.getToken());
     }

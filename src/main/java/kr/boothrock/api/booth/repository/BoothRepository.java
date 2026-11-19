@@ -19,7 +19,7 @@ import org.springframework.stereotype.Repository;
 public class BoothRepository {
     private static final String STOCK_JOIN = """
             left join lateral (
-                select count(*) as item_count, bool_and(i.stock_status = 'SOLD_OUT') as all_sold_out,
+                select count(*) as item_count, count(*) filter (where i.stock_status = 'SOLD_OUT') as sold_out_item_count, bool_and(i.stock_status = 'SOLD_OUT') as all_sold_out,
                     bool_and(i.stock_status = 'UNLIMITED') as all_unlimited,
                     bool_or(i.stock_status in ('LOW', 'SOLD_OUT')) as any_low,
                     max(i.updated_at) as updated_at from app.booth_items i where i.event_booth_id = b.id
@@ -29,11 +29,12 @@ public class BoothRepository {
             case when stock.item_count = 0 then 'NOT_TRACKED'
                 when stock.all_sold_out then 'SOLD_OUT' when stock.all_unlimited then 'UNLIMITED'
                 when stock.any_low then 'LOW' else 'AVAILABLE' end as stock_summary,
+            stock.item_count as total_item_count, stock.sold_out_item_count,
             greatest(b.updated_at, stock.updated_at) as last_changed_at
             """;
     private static final String LIST_FIELDS = """
             event_booth_id, booth_code, name, category_code, operation_status,
-            stock_summary, placement_status, last_changed_at
+            stock_summary, total_item_count, sold_out_item_count, cover_image_url, placement_status, last_changed_at
             """;
     private static final String ITEM_FIELDS = "id, name, description, price_krw, stock_status, sort_order";
     private final SqlStore sql;
@@ -85,6 +86,8 @@ public class BoothRepository {
         String base = """
                 with booth_rows as (select b.id as event_booth_id, b.booth_code, b.name, b.category_code,
                     b.operation_status, b.visibility_status, b.source, b.revision,
+                    (select '/api/media-assets/' || p.media_asset_id || '/content' from app.booth_photos p
+                        where p.event_booth_id = b.id order by p.sort_order limit 1) as cover_image_url,
                 """ + STOCK_FIELDS + ", case when " + placement + " then 'ASSIGNED' else 'UNASSIGNED' end as placement_status"
                 + " from app.event_booths b " + STOCK_JOIN + " where b.event_id = ?) ";
         args.add(eventId);
@@ -92,7 +95,13 @@ public class BoothRepository {
         if (publicOnly) where.append(" and visibility_status = 'PUBLIC'");
         else if (filter.visibilityStatus() == null) where.append(" and visibility_status <> 'ARCHIVED'");
         else condition(where, args, "visibility_status", filter.visibilityStatus());
-        if (filter.q() != null) { where.append(" and name ilike ? escape '\\'"); args.add(Rules.like(filter.q())); }
+        if (filter.q() != null) {
+            where.append(" and (name ilike ? escape '\\' or booth_code ilike ? escape '\\'"
+                    + " or exists (select 1 from app.booth_items i where i.event_booth_id = booth_rows.event_booth_id"
+                    + " and i.name ilike ? escape '\\'))");
+            String query = Rules.like(filter.q());
+            args.add(query); args.add(query); args.add(query);
+        }
         condition(where, args, "category_code", filter.categoryCode());
         condition(where, args, "operation_status", filter.operationStatus());
         condition(where, args, "stock_summary", filter.stockSummary());
@@ -113,8 +122,10 @@ public class BoothRepository {
                 select count(*) as total, count(*) filter (where operation_status = 'PREPARING') as preparing,
                     count(*) filter (where operation_status = 'OPEN') as open,
                     count(*) filter (where operation_status = 'SOLD_OUT') as sold_out,
-                    count(*) filter (where operation_status = 'CLOSED') as closed
-                from app.event_booths where event_id = ? and visibility_status <> 'ARCHIVED'
+                    count(*) filter (where operation_status = 'CLOSED') as closed,
+                    count(*) filter (where exists (select 1 from app.booth_items i
+                        where i.event_booth_id = b.id and i.stock_status = 'SOLD_OUT')) as booths_with_sold_out_items
+                from app.event_booths b where event_id = ? and visibility_status <> 'ARCHIVED'
                 """, eventId);
     }
 
@@ -144,6 +155,24 @@ public class BoothRepository {
                     description = coalesce(?, description), visibility_status = coalesce(?, visibility_status),
                     revision = revision + 1, updated_at = now() where id = ?
                 """, request.name(), request.categoryCode(), request.description(), request.visibilityStatus(), boothId);
+    }
+
+    public List<Map<String, Object>> photos(UUID boothId) {
+        return sql.list("""
+                select p.media_asset_id, p.sort_order, m.width_px, m.height_px,
+                    '/api/media-assets/' || p.media_asset_id || '/content' as image_url
+                from app.booth_photos p join app.media_assets m on m.id = p.media_asset_id
+                where p.event_booth_id = ? order by p.sort_order
+                """, boothId);
+    }
+
+    public void replacePhotos(UUID eventId, UUID boothId, List<UUID> assetIds) {
+        sql.update("delete from app.booth_photos where event_booth_id = ?", boothId);
+        for (int index = 0; index < assetIds.size(); index++) {
+            sql.update("insert into app.booth_photos(event_id, event_booth_id, media_asset_id, sort_order) values (?, ?, ?, ?)",
+                    eventId, boothId, assetIds.get(index), index);
+        }
+        touch(boothId);
     }
 
     public void operationStatus(UUID boothId, String status) {

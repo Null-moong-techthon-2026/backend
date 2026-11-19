@@ -1,0 +1,48 @@
+services:
+  api:
+    environment:
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+      SPRINGDOC_API_DOCS_ENABLED: "true"
+      SPRINGDOC_SWAGGER_UI_ENABLED: "true"
+      SPRINGDOC_SWAGGER_UI_DISABLE_SWAGGER_DEFAULT_URL: "true"
+  proxy:
+    image: caddy:2.11.7-alpine
+    pull_policy: missing
+    environment:
+      STAGING_DOMAIN: ${STAGING_DOMAIN:?Set STAGING_DOMAIN in .env.proxy}
+      GOMEMLIMIT: 192MiB
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - type: bind
+        source: ./Caddyfile.staging
+        target: /etc/caddy/Caddyfile
+        read_only: true
+        bind:
+          create_host_path: false
+      - caddy-data:/data
+      - caddy-config:/config
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    depends_on:
+      api:
+        condition: service_healthy
+    read_only: true
+    restart: unless-stopped
+    stop_grace_period: 15s
+    mem_limit: 256m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  caddy-data:
+  caddy-config:

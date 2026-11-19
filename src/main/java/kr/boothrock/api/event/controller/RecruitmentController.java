@@ -15,7 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@Profile("local & !deploy")
+@Profile("(local | staging) & !deploy")
 @RequestMapping("/api")
 @Tag(name="부스 모집")
 public class RecruitmentController {
@@ -23,7 +23,7 @@ public class RecruitmentController {
     public RecruitmentController(RecruitmentService service) { this.service=service; }
     @GetMapping("/events/{eventId}/recruitment") @Operation(summary="모집 공고 편집 정보")
     public Map<String,Object> get(@PathVariable UUID eventId,@AuthenticationPrincipal AccountPrincipal actor) { return service.get(eventId,actor.getAccountId()); }
-    @PutMapping("/events/{eventId}/recruitment") @Operation(summary="모집 공고 저장·게시",description="전체 폼과 revision을 보냅니다. 첫 신청 이후 카테고리·참가비·필요 서류는 고정됩니다.")
+    @PutMapping("/events/{eventId}/recruitment") @Operation(summary="모집 공고 저장·게시",description="전체 폼과 revision을 보냅니다. 첫 신청 이후 카테고리·참가비·필요 서류는 고정됩니다. closesAt은 행사 endsAt 이하여야 하며 위반하면 400입니다. 마감 단축 시 기존 초대 만료도 줄이고 마감 연장으로 기존 토큰을 연장·재활성화하지 않습니다.")
     @Parameter(name="X-CSRF-TOKEN",in=ParameterIn.HEADER,required=true)
     public Map<String,Object> save(@PathVariable UUID eventId,@AuthenticationPrincipal AccountPrincipal actor,@Valid @RequestBody EventRequests.Recruitment request) { return service.save(eventId,actor.getAccountId(),request); }
     @GetMapping("/public/events/{eventId}/recruitment") @Operation(summary="공개 모집 공고")

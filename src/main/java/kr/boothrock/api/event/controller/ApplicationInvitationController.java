@@ -18,13 +18,13 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@Profile("local & !deploy")
+@Profile("(local | staging) & !deploy")
 @RequestMapping("/api")
 @Tag(name="부스 신청 초대")
 public class ApplicationInvitationController {
     private final ApplicationInvitationService service;
     public ApplicationInvitationController(ApplicationInvitationService service) { this.service=service; }
-    @GetMapping("/events/{eventId}/application-invitation") @Operation(summary="현재 초대 상태 조회",description="코드 원문은 발급 직후에만 제공됩니다.")
+    @GetMapping("/events/{eventId}/application-invitation") @Operation(summary="현재 초대 상태 조회",description="코드 원문은 발급 직후에만 제공됩니다. active는 초대 만료·현재 모집 마감·행사 종료·게시 상태를 함께 반영합니다.")
     public Map<String,Object> get(@PathVariable UUID eventId,@AuthenticationPrincipal AccountPrincipal actor) { return service.get(eventId,actor.getAccountId()); }
     @PostMapping("/events/{eventId}/application-invitation") @Operation(summary="초대 코드 발급·재발급",description="기존 코드는 즉시 폐기됩니다. 링크는 프론트 신청 화면에서 처리합니다.")
     @Parameter(name="X-CSRF-TOKEN",in=ParameterIn.HEADER,required=true)
@@ -34,7 +34,7 @@ public class ApplicationInvitationController {
     @DeleteMapping("/events/{eventId}/application-invitation") @ResponseStatus(HttpStatus.NO_CONTENT) @Operation(summary="현재 초대 폐기")
     @Parameter(name="X-CSRF-TOKEN",in=ParameterIn.HEADER,required=true)
     public void revoke(@PathVariable UUID eventId,@AuthenticationPrincipal AccountPrincipal actor) { service.revoke(eventId,actor.getAccountId()); }
-    @PostMapping("/application-invitations/resolve") @Operation(summary="초대 코드로 모집 정보 확인",description="유효한 코드로 신청 정보만 조회합니다. 신청 또는 승인 처리는 별도입니다.")
+    @PostMapping("/application-invitations/resolve") @Operation(summary="초대 코드로 모집 정보 확인",description="발급된 대소문자를 포함한 코드 원문을 그대로 보냅니다(스태프 BL- 코드와 다른 형식). 유효한 코드로 모집 정보만 조회합니다. 마감·종료·만료·폐기는 404이며 신청/승인은 별도입니다.")
     @Parameter(name="X-CSRF-TOKEN",in=ParameterIn.HEADER,required=true)
     public ResponseEntity<?> resolve(@Valid @RequestBody EventRequests.Resolve request) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.resolve(request.code()));

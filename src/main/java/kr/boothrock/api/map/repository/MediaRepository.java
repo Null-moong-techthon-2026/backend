@@ -15,14 +15,14 @@ public class MediaRepository {
 
     public Map<String, Object> asset(UUID id) {
         return sql.one("""
-                select id, event_id, bucket, object_key, mime_type, size_bytes, width_px, height_px
+                select id, event_id, event_booth_id, bucket, object_key, mime_type, size_bytes, width_px, height_px
                 from app.media_assets where id = ?
                 """, id);
     }
 
     public Map<String, Object> asset(UUID eventId, UUID id) {
         return sql.one("""
-                select id, event_id, bucket, object_key, mime_type, size_bytes, width_px, height_px
+                select id, event_id, event_booth_id, bucket, object_key, mime_type, size_bytes, width_px, height_px
                 from app.media_assets where event_id = ? and id = ?
                 """, eventId, id);
     }
@@ -34,6 +34,9 @@ public class MediaRepository {
                 join app.organizations o on o.id = e.organization_id
                 where m.id = ? and e.publication_status = 'PUBLISHED' and o.organization_status = 'ACTIVE' and (
                     e.poster_asset_id = m.id
+                    or exists (select 1 from app.booth_photos p join app.event_booths b on b.id = p.event_booth_id
+                        and b.event_id = p.event_id where p.media_asset_id = m.id and p.event_id = e.id
+                        and b.visibility_status = 'PUBLIC')
                     or exists (select 1 from app.floor_plans f
                         where f.event_id = e.id and f.media_asset_id = m.id
                         and f.publication_status = 'PUBLISHED')
@@ -54,13 +57,13 @@ public class MediaRepository {
                 """, eventId, assetId, staff, operator) > 0;
     }
 
-    public void insert(UUID id, UUID eventId, UUID accountId, String key,
+    public void insert(UUID id, UUID eventId, UUID accountId, UUID boothId, String bucket, String key,
             String mimeType, long size, int width, int height) {
         sql.update("""
                 insert into app.media_assets
-                    (id, event_id, uploaded_by, bucket, object_key, mime_type, size_bytes, width_px, height_px)
-                values (?, ?, ?, 'local', ?, ?, ?, ?, ?)
-                """, id, eventId, accountId, key, mimeType, size, width, height);
+                    (id, event_id, uploaded_by, event_booth_id, bucket, object_key, mime_type, size_bytes, width_px, height_px)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, id, eventId, accountId, boothId, bucket, key, mimeType, size, width, height);
         sql.update("""
                 insert into app.audit_logs
                     (id, organization_id, event_id, actor_account_id, actor_type, action, target_type, target_id)

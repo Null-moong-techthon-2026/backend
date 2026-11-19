@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@Profile("local & !deploy")
+@Profile("local & !staging & !deploy")
 @RequestMapping("/api/dev")
 @Tag(name = "로컬 테스트")
 public class LocalDataController {

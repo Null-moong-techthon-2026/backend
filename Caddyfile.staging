@@ -1,0 +1,39 @@
+{
+	admin off
+	servers {
+		protocols h1 h2
+	}
+}
+
+{$STAGING_DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size 11MiB
+	}
+
+	handle_errors {
+		@too_large expression {http.error.status_code} == 413
+		handle @too_large {
+			header Content-Type application/json
+			respond `{"code":"FILE_TOO_LARGE","message":"Maximum request size is 11 MiB."}` 413
+		}
+		handle {
+			respond "" {http.error.status_code}
+		}
+	}
+	route {
+		@development_api path /api/dev /api/dev/*
+		respond @development_api 404
+
+		@application path /api/* /swagger-ui /swagger-ui/* /swagger-ui.html /v3/api-docs /v3/api-docs/* /v3/api-docs.yaml
+		handle @application {
+			reverse_proxy api:8080 {
+				header_up -Forwarded
+				header_up -X-Forwarded-Prefix
+				header_up -X-Forwarded-Port
+				header_up -X-Forwarded-Ssl
+			}
+		}
+		respond 404
+	}
+}

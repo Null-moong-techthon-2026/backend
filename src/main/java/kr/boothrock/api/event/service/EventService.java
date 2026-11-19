@@ -48,6 +48,7 @@ public class EventService {
                 VALUES (?,?,?,?,?,?,?,?)
                 """,id,organizationId,actor,request.name().trim(),request.venue(),request.startsAt(),request.endsAt(),Rules.text(request.description()));
         db.update("INSERT INTO app.event_recruitments(event_id) VALUES (?)",id);
+        db.update("insert into app.staff_members(id,event_id,account_id,role,status) values (?,?,?,'ADMIN','WAITING')",UUID.randomUUID(),id,actor);
         events.audit(id,actor,"EVENT_CREATED","EVENT",id);
         return get(id,actor);
     }
@@ -79,7 +80,19 @@ public class EventService {
         period(start,end);
         Rules.input(!"PUBLISHED".equals(publication)||(venue!=null&&!venue.isBlank()&&start!=null&&end!=null),
                 "Published events require venue and both dates.");
-        UUID poster=request.posterAssetId()==null?SqlStore.uuid(row,"posterAssetId"):request.posterAssetId();
+        if(request.endsAt()!=null&&!request.endsAt().equals(row.get("endsAt"))) {
+            Instant closes=(Instant)events.recruitment(eventId).get("closesAt");
+            Rules.input(closes==null||!closes.isAfter(end),"Shorten recruitment closesAt before moving event endsAt earlier.");
+        }
+        UUID poster=SqlStore.uuid(row,"posterAssetId");
+        if(request.posterAssetId()!=null) {
+            poster=null;
+            if(!request.posterAssetId().isNull()) {
+                Rules.input(request.posterAssetId().isString(),"posterAssetId must be a UUID or null.");
+                try { poster=UUID.fromString(request.posterAssetId().asString()); }
+                catch(IllegalArgumentException invalid) { throw new kr.boothrock.api.common.service.ApiException(400,"VALIDATION_ERROR","Invalid posterAssetId."); }
+            }
+        }
         if(poster!=null) db.one("SELECT id FROM app.media_assets WHERE id=? AND event_id=?",poster,eventId);
         db.update("""
                 UPDATE app.events SET name=?,venue=?,starts_at=?,ends_at=?,description=?,poster_asset_id=?,
@@ -109,7 +122,7 @@ public class EventService {
         String filter="";
         if(status!=null) {
             Rules.enumValue(status,"OPEN","CLOSED");
-            filter="OPEN".equals(status)?" AND r.closes_at>now()":" AND r.closes_at<=now()";
+            filter="OPEN".equals(status)?" AND r.closes_at>now() AND (e.ends_at IS NULL OR e.ends_at>now())":" AND (r.closes_at<=now() OR e.ends_at<=now())";
         }
         String from="""
                 FROM app.events e JOIN app.organizations o ON o.id=e.organization_id
@@ -139,7 +152,7 @@ public class EventService {
         if(internal) { result.put("revision",row.get("revision")); result.put("publicationStatus",row.get("publicationStatus")); result.put("posterAssetId",row.get("posterAssetId")); }
         if(row.containsKey("closesAt")) {
             result.put("closesAt",row.get("closesAt"));
-            result.put("recruitmentStatus",((Instant)row.get("closesAt")).isAfter(now)?"OPEN":"CLOSED");
+            result.put("recruitmentStatus",row.get("closesAt") instanceof Instant closes&&closes.isAfter(now)&&(end==null||end.isAfter(now))?"OPEN":"CLOSED");
         }
         return result;
     }

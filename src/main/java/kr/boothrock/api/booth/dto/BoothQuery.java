@@ -5,6 +5,7 @@ import java.util.UUID;
 public class BoothQuery {
     private int page = 0;
     private Integer size;
+    @io.swagger.v3.oas.annotations.media.Schema(description = "부스명·부스 번호·메뉴명 부분 검색")
     private String q;
     private String categoryCode;
     private String operationStatus;
